@@ -10,3 +10,4 @@ fastfetch.kdev4
 *.user
 *.user.*
 *.swp
+build_mips/
