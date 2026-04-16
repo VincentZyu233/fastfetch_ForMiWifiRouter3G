@@ -3,11 +3,15 @@ name: Build Fastfetch for MIPS (小米路由器 XiaoMi R3G MT7621)
 on:
   push:
     branches: [ dev, main ]
+    tags:
+      - 'v*' # 当你推送以 v 开头的 tag 时触发发布
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions: # 赋予 Action 写入 Release 的权限
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -20,27 +24,22 @@ jobs:
       - name: Download & Setup OpenWrt SDK
         run: |
           echo "::group::Downloading OpenWrt SDK"
-          # 使用 -q 减少输出，--show-progress 仅保留进度条
           wget -q --show-progress https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
           echo "::endgroup::"
           
           echo "::group::Extracting SDK"
-          # 解压
           tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          # 设置环境变量
           echo "SDK_ROOT=$(pwd)/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64" >> $GITHUB_ENV
           echo "::endgroup::"
 
       - name: Compile Fastfetch
         run: |
-          # 核心环境变量设置
           export SYSROOT=$SDK_ROOT/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl
           export PATH=$SYSROOT/bin:$PATH
           export STAGING_DIR=$SDK_ROOT/staging_dir
           
           mkdir build_mips && cd build_mips
           
-          # 增加 -DENABLE_SQLITE3=OFF 修复报错
           cmake .. \
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=mips \
@@ -54,18 +53,28 @@ jobs:
             -DCMAKE_C_FLAGS="--sysroot=$SYSROOT -msoft-float -mips32r2 -nostdinc -I$SYSROOT/include -I$SYSROOT/usr/include" \
             -DENABLE_ZLIB=OFF \
             -DENABLE_SQLITE3=OFF \
-            -DENABLE_DRM=OFF \
-            -DENABLE_X11=OFF \
-            -DENABLE_WAYLAND=OFF \
-            -DENABLE_VULKAN=OFF \
-            -DENABLE_DBUS=OFF \
-            -DENABLE_PCI=OFF
+            -DENABLE_DRM=OFF -DENABLE_X11=OFF -DENABLE_WAYLAND=OFF -DENABLE_VULKAN=OFF -DENABLE_DBUS=OFF -DENABLE_PCI=OFF
           
           make -j$(nproc)
-          
-          # 瘦身并重命名，方便识别
           mipsel-openwrt-linux-strip fastfetch
           mv fastfetch fastfetch-linux-mipsel-mt7621
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') # 仅当存在 Tag 时才发布到 Release
+        with:
+          files: build_mips/fastfetch-linux-mipsel-mt7621
+          body: |
+            ### Fastfetch for XiaoMi Router 3G (MT7621)
+            
+            > **Notice:** This binary is automatically compiled and optimized by **GitHub Actions**.
+            
+            - **Target Hardware:** Xiaomi Mi Router 3G / MT7621
+            - **Architecture:** MIPS (mipsel)
+            - **LIBC:** musl
+            - **Build Type:** Static Linked
+          draft: false
+          prerelease: false
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
