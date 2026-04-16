@@ -3,18 +3,18 @@ name: Build Fastfetch for MIPS (小米路由器 XiaoMi R3G MT7621)
 on:
   push:
     branches: [ dev, main ]
-    tags:
-      - 'v*' # 当你推送以 v 开头的 tag 时触发发布
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions: # 赋予 Action 写入 Release 的权限
+    permissions:
       contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取完整历史以读取 commit message
 
       - name: Install Dependencies
         run: |
@@ -61,17 +61,23 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') # 仅当存在 Tag 时才发布到 Release
+        # 检测 commit message 是否包含指定关键词
+        if: |
+          contains(github.event.head_commit.message, 'build release') || 
+          contains(github.event.head_commit.message, 'build action')
         with:
+          # 使用当前时间戳或 commit hash 作为唯一的 tag 名称
+          tag_name: release-${{ github.sha }}
+          name: "Fastfetch Auto Release (MT7621)"
           files: build_mips/fastfetch-linux-mipsel-mt7621
           body: |
             ### Fastfetch for XiaoMi Router 3G (MT7621)
             
-            > **Notice:** This binary is automatically compiled and optimized by **GitHub Actions**.
+            > **Notice:** This binary was automatically triggered and compiled by **GitHub Actions** via commit message keywords.
             
             - **Target Hardware:** Xiaomi Mi Router 3G / MT7621
             - **Architecture:** MIPS (mipsel)
-            - **LIBC:** musl
+            - **Build ID:** `${{ github.sha }}`
             - **Build Type:** Static Linked
           draft: false
           prerelease: false
