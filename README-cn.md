@@ -6,6 +6,14 @@
 > * 🚀 **自动构建:** 使用 GitHub Actions.
 > * 📦 **预构建二进制:** 可以直接在[Releases](../../releases) 里面下载捏.
 
+## 快速一键安装
+```bash
+# 从 github 安装
+wget -O - https://github.com/VincentZyu233/fastfetch_ForMiWifiRouter3G/raw/dev/doc/download_fastfetch_github.sh | sh
+# 从 gitee 安装
+wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/download_fastfetch_gitee.sh | sh
+```
+
 ![小米路由器R3G Fastfetch 运行效果](doc/fastfetch-mips-MT7621-小米路由器R3G.png)
 
 [![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/fastfetch-cli/fastfetch/ci.yml)](https://github.com/fastfetch-cli/fastfetch/actions)

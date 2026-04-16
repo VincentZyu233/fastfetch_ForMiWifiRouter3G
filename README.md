@@ -6,6 +6,13 @@
 > * 🚀 **Automated Builds:** Powered by GitHub Actions.
 > * 📦 **Pre-built Binaries:** Directly available in the [Releases](../../releases) section.
 
+## One-liner Install Command
+```bash
+# install from github
+wget -O - https://github.com/VincentZyu233/fastfetch_ForMiWifiRouter3G/raw/dev/doc/download_fastfetch_github.sh | sh
+# install from gitee
+wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/download_fastfetch_gitee.sh | sh
+```
 
 ![小米路由器R3G Fastfetch 运行效果](doc/fastfetch-mips-MT7621-小米路由器R3G.png)
 
