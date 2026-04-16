@@ -1,5 +1,9 @@
 # Fastfetch for MiWiFi R3G (MT7621)
 
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/VincentZyu233/fastfetch_ForMiWifiRouter3G)
+[![Gitee](https://img.shields.io/badge/Gitee-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G)
+
+
 > This repository is a fork of fastfetch, providing optimized binaries for the **Xiaomi Mi Router 3G (MIPS MT7621)**. 
 > 
 > **Key Features:**

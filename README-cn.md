@@ -1,5 +1,8 @@
 # Fastfetch for MiWiFi R3G (MT7621)
 
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/VincentZyu233/fastfetch_ForMiWifiRouter3G)
+[![Gitee](https://img.shields.io/badge/Gitee-C71D23?style=for-the-badge&logo=gitee&logoColor=white)](https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G)
+
 > 本仓库是fastfetch的fork捏，给**小米路由器 R3G (MIPS MT7621)**.设备提供预编译二进制捏
 >
 > **关键点:**
