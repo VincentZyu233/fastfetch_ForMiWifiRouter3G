@@ -1,4 +1,13 @@
-# Fastfetch
+# Fastfetch for MiWiFi R3G (MT7621)
+
+> This repository is a fork of fastfetch, providing optimized binaries for the **Xiaomi Mi Router 3G (MIPS MT7621)**. 
+> 
+> **Key Features:**
+> * 🚀 **Automated Builds:** Powered by GitHub Actions.
+> * 📦 **Pre-built Binaries:** Directly available in the [Releases](../../releases) section.
+
+
+![小米路由器R3G Fastfetch 运行效果](doc/fastfetch-mips-MT7621-小米路由器R3G.png)
 
 [![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/fastfetch-cli/fastfetch/ci.yml)](https://github.com/fastfetch-cli/fastfetch/actions)
 [![GitHub license](https://img.shields.io/github/license/fastfetch-cli/fastfetch)](https://github.com/fastfetch-cli/fastfetch/blob/dev/LICENSE)
