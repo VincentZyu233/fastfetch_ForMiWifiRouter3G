@@ -76,6 +76,8 @@ scp ./fastfetch-linux-mipsel root@192.168.5.1:/usr/bin/fastfetch
 ```
 
 ![works-on-my-machine.png](doc/works-on-my-machine.png)
+![小米路由器R3G的背面.png](doc/小米路由器R3G的背面.png)
+![小米路由器R3G的咸鱼商品页.png](doc/小米路由器R3G的咸鱼商品页.png)
 
 ---
 > 以下是来自原始上游仓库的README
