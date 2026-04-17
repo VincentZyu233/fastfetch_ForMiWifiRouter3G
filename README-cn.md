@@ -23,7 +23,7 @@ wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/
 ## github 的讨论捏:
 > https://github.com/fastfetch-cli/fastfetch/discussions/2271
 
-## build step 
+## 编译的流程捏
 ```bash
 proxychains4 wget https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
 
