@@ -20,6 +20,66 @@ wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/
 
 ![小米路由器R3G Fastfetch 运行效果](doc/fastfetch-mips-MT7621-小米路由器R3G.png)
 
+## github discussion:
+> https://github.com/fastfetch-cli/fastfetch/discussions/2271
+
+## build step 
+```bash
+proxychains4 wget https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
+tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+cd openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
+
+# cd home/mac/SSoftwareFiles/openwrt-sdk/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
+pwd
+# find dir of toolchains
+export SDK_PATH=$(pwd)
+export TOOLCHAIN_PATH=$SDK_PATH/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl
+export PATH=$TOOLCHAIN_PATH/bin:$PATH
+export STAGING_DIR=$SDK_PATH/staging_dir
+export SYSROOT=$SDK_PATH/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl
+
+cd ..
+proxychains4 git clone https://github.com/fastfetch-cli/fastfetch
+cd fastfetch
+# cd /home/mac/SSoftwareFiles/fastfetch
+pwd
+mkdir build_mips && cd build_mips
+rm -rf ./*
+
+cmake .. \
+  -DCMAKE_SYSTEM_NAME=Linux \
+  -DCMAKE_SYSTEM_PROCESSOR=mips \
+  -DCMAKE_C_COMPILER=mipsel-openwrt-linux-gcc \
+  -DCMAKE_CXX_COMPILER=mipsel-openwrt-linux-g++ \
+  -DCMAKE_STAGING_PREFIX=$SDK_PATH/staging_dir/target-mipsel_24kc_musl \
+  -DCMAKE_FIND_ROOT_PATH=$SYSROOT \
+  -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+  -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+  -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+  -DCMAKE_EXE_LINKER_FLAGS="-static" \
+  -DCMAKE_C_FLAGS="--sysroot=$SYSROOT -msoft-float -mips32r2 -nostdinc -I$SYSROOT/include -I$SYSROOT/usr/include" \
+  -DENABLE_ZLIB=OFF \
+  -DENABLE_DRM=OFF -DENABLE_X11=OFF -DENABLE_WAYLAND=OFF -DENABLE_VULKAN=OFF -DENABLE_DBUS=OFF -DENABLE_PCI=OFF
+
+make -j$(nproc)
+
+# become thinner
+ls -lh ./fastfetch
+mipsel-linux-gnu-strip ./fastfetch
+ls -lh ./fastfetch
+
+
+cp ./fastfetch ./fastfetch-linux-mipsel
+
+scp ./fastfetch-linux-mipsel root@192.168.5.1:/usr/bin/fastfetch
+```
+
+![works-on-my-machine.png](doc/works-on-my-machine.png)
+
+---
+> below are original README from upstream repo
+
 [![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/fastfetch-cli/fastfetch/ci.yml)](https://github.com/fastfetch-cli/fastfetch/actions)
 [![GitHub license](https://img.shields.io/github/license/fastfetch-cli/fastfetch)](https://github.com/fastfetch-cli/fastfetch/blob/dev/LICENSE)
 [![GitHub contributors](https://img.shields.io/github/contributors/fastfetch-cli/fastfetch)](https://github.com/fastfetch-cli/fastfetch/graphs/contributors)
