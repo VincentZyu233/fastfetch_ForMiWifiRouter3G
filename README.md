@@ -20,10 +20,10 @@ wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/
 
 ![小米路由器R3G Fastfetch 运行效果](doc/fastfetch-mips-MT7621-小米路由器R3G.png)
 
-## github discussion:
+## Github Discussion:
 > https://github.com/fastfetch-cli/fastfetch/discussions/2271
 
-## build step 
+## Build Step 
 ```bash
 proxychains4 wget https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
 # or download from tsinghua tuna mirror cdn:
@@ -32,6 +32,7 @@ wget https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.4/targets/ramip
 tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
 cd openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
 # cd /home/mac/SSoftwareFiles/openwrt-sdk/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
+ls
 pwd
 # find dir of toolchains
 export SDK_PATH=$(pwd)
@@ -44,6 +45,7 @@ cd ..
 proxychains4 git clone https://github.com/fastfetch-cli/fastfetch
 cd fastfetch
 # cd /home/mac/SSoftwareFiles/fastfetch
+ls
 pwd
 mkdir build_mips && cd build_mips
 rm -rf ./*
@@ -76,12 +78,57 @@ cp ./fastfetch ./fastfetch-linux-mipsel
 scp ./fastfetch-linux-mipsel root@192.168.5.1:/usr/bin/fastfetch
 ```
 
+## Edit Fastfetch Config File On OpenWrt
+```bash
+nano ~/.config/fastfetch/config.jsonc
+```
+```json
+{
+    "$schema": "https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/json_schema.json",
+    "modules": [
+        "title",
+        "separator",
+        "os",
+        "host",
+        "kernel",
+        {
+            "type": "cpu",
+            "format": "MediaTek MT7621 (4) @ 880MHz"
+        },
+        {
+            "type": "command",
+            "key": "CPU Arch",
+            "text": "echo 'MIPS 1004Kc (Little-Endian)'"
+        },
+        "uptime",
+        {
+            "type": "command",
+            "key": "Shell",
+            "text": "echo \"ash (BusyBox $(opkg status busybox | grep Version | awk '{print $2}'))\""
+        },
+        "terminal",
+        "memory",
+        {
+            "type": "command",
+            "key": "Load Avg",
+            "text": "cat /proc/loadavg | awk '{print $1, $2, $3}'"
+        },
+        "disk",
+        "localip",
+        "break",
+        "colors"
+    ]
+}
+```
+
+## Final Effect
+
 ![works-on-my-machine.png](doc/works-on-my-machine.png)
 ![小米路由器R3G的背面.png](doc/小米路由器R3G的背面.png)
 ![小米路由器R3G的咸鱼商品页.png](doc/小米路由器R3G的咸鱼商品页.png)
 
 ---
-> below are original README from upstream repo
+> Below are original README from upstream repo:
 
 [![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/fastfetch-cli/fastfetch/ci.yml)](https://github.com/fastfetch-cli/fastfetch/actions)
 [![GitHub license](https://img.shields.io/github/license/fastfetch-cli/fastfetch)](https://github.com/fastfetch-cli/fastfetch/blob/dev/LICENSE)
