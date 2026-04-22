@@ -31,8 +31,7 @@ wget https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.4/targets/ramip
 
 tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
 cd openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
-
-# cd home/mac/SSoftwareFiles/openwrt-sdk/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
+# cd /home/mac/SSoftwareFiles/openwrt-sdk/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
 pwd
 # find dir of toolchains
 export SDK_PATH=$(pwd)
