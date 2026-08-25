@@ -14,6 +14,10 @@ on:
         description: fastfetch version from linux host build
         value: ${{ jobs.build.outputs.ffversion }}
 
+permissions:
+  security-events: write
+  contents: read
+
 env:
   CMAKE_BUILD_TYPE: ${{ vars.CMAKE_BUILD_TYPE || 'RelWithDebInfo' }}
 
@@ -24,7 +28,7 @@ jobs:
       ffversion: ${{ steps.ffversion.outputs.ffversion }}
     steps:
       - name: checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: uname -a
         run: uname -a
@@ -39,28 +43,28 @@ jobs:
         run: sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 
       - name: install required packages
-        run: sudo apt-get update && sudo apt-get install -y gcc-13 libvulkan-dev libwayland-dev libxrandr-dev libxcb-randr0-dev libdconf-dev libdbus-1-dev libmagickcore-dev libsqlite3-dev librpm-dev libegl-dev libglx-dev ocl-icd-opencl-dev libpulse-dev libdrm-dev libelf-dev libddcutil-dev rpm ninja-build
+        run: sudo apt-get update && sudo apt-get install -y gcc-13 libvulkan-dev libwayland-dev libxrandr-dev libxcb-randr0-dev libdconf-dev libdbus-1-dev libmagickcore-dev libsqlite3-dev librpm-dev libegl-dev libglx-dev ocl-icd-opencl-dev libpulse-dev libdrm-dev libelf-dev libddcutil-dev libefl-all-dev libunwind-dev liblua5.4-dev libvdpau-dev libva-dev rpm ninja-build
 
       - name: install linuxbrew packages
         run: |
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          /home/linuxbrew/.linuxbrew/bin/brew install imagemagick chafa --ignore-dependencies
+          /home/linuxbrew/.linuxbrew/bin/brew install imagemagick chafa quickjs-ng --ignore-dependencies
 
       - name: Initialize CodeQL
         if: inputs.arch == 'amd64'
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           languages: c
 
       - name: configure project
-        run: CC=gcc-13 PKG_CONFIG_PATH=/home/linuxbrew/.linuxbrew/lib/pkgconfig:$PKG_CONFIG_PATH cmake -GNinja -DSET_TWEAK=Off -DBUILD_TESTS=On -DENABLE_EMBEDDED_PCIIDS=On -DENABLE_EMBEDDED_AMDGPUIDS=On -DCMAKE_INSTALL_PREFIX=/usr .
+        run: CC=gcc-13 CMAKE_PREFIX_PATH=/home/linuxbrew/.linuxbrew PKG_CONFIG_PATH=/home/linuxbrew/.linuxbrew/lib/pkgconfig:$PKG_CONFIG_PATH cmake -GNinja -DSET_TWEAK=Off -DBUILD_TESTS=On -DENABLE_EMBEDDED_PCIIDS=On -DENABLE_EMBEDDED_AMDGPUIDS=On -DCMAKE_INSTALL_PREFIX=/usr .
 
       - name: build project
         run: cmake --build . --target package --verbose -j4
 
       - name: perform CodeQL analysis
         if: inputs.arch == 'amd64'
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
 
       - name: list features
         run: ./fastfetch --list-features
@@ -97,7 +101,7 @@ jobs:
           cpack -V
 
       - name: upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fastfetch-linux-${{ inputs.arch }}
           path: ./fastfetch-*.*

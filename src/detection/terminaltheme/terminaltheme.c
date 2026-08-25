@@ -1,6 +1,6 @@
 #include "terminaltheme.h"
 #include "common/io.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 #include <inttypes.h>
 
@@ -14,7 +14,7 @@ static bool detectByEscapeCode(FFTerminalThemeResult* result) {
             &result->fg.b,
             &result->bg.r,
             &result->bg.g,
-            &result->bg.b) == NULL) {
+            &result->bg.b) == nullptr) {
         if (result->fg.r > 0x0100 || result->fg.g > 0x0100 || result->fg.b > 0x0100) {
             result->fg.r /= 0x0100, result->fg.g /= 0x0100, result->fg.b /= 0x0100;
         }

@@ -6,9 +6,9 @@
 #include <usbhid.h>
 
 #if __has_include(<dev/usb/usb_ioctl.h>)
-#    include <dev/usb/usb_ioctl.h> // FreeBSD
+    #include <dev/usb/usb_ioctl.h> // FreeBSD
 #else
-#    include <bus/u4b/usb_ioctl.h> // DragonFly
+    #include <bus/u4b/usb_ioctl.h> // DragonFly
 #endif
 
 #define MAX_UHID_MICE 64
@@ -52,5 +52,5 @@ const char* ffDetectMouse(FFlist* devices /* List of FFMouseDevice */) {
         hid_dispose_report_desc(repDesc);
     }
 
-    return NULL;
+    return nullptr;
 }

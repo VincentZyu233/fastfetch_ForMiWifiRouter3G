@@ -8,12 +8,16 @@ struct FFNvmlData {
     FF_LIBRARY_SYMBOL(nvmlDeviceGetHandleByIndex_v2)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetHandleByPciBusId_v2)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetPciInfo_v3)
-    FF_LIBRARY_SYMBOL(nvmlDeviceGetTemperature)
+    FF_LIBRARY_SYMBOL(nvmlDeviceGetTemperatureV)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetMemoryInfo_v2)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetMemoryInfo)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetNumGpuCores)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetMaxClockInfo)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetUtilizationRates)
+    FF_LIBRARY_SYMBOL(nvmlDeviceGetMaxPcieLinkGeneration)
+    FF_LIBRARY_SYMBOL(nvmlDeviceGetMaxPcieLinkWidth)
+    FF_LIBRARY_SYMBOL(nvmlDeviceGetCurrPcieLinkGeneration)
+    FF_LIBRARY_SYMBOL(nvmlDeviceGetCurrPcieLinkWidth)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetBrand)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetIndex)
     FF_LIBRARY_SYMBOL(nvmlDeviceGetName)
@@ -23,7 +27,7 @@ struct FFNvmlData {
 
 #if defined(_WIN32) && !defined(FF_DISABLE_DLOPEN)
 
-#    include "nvapi.h"
+    #include "nvapi.h"
 
 struct FFNvapiData {
     FF_LIBRARY_SYMBOL(nvapi_Unload)
@@ -39,24 +43,24 @@ static const char* detectMoreByNvapi(FFGpuDriverResult* result) {
         nvapiData.inited = true;
 
         FF_LIBRARY_LOAD_MESSAGE(libnvapi,
-#    ifdef _WIN64
+    #ifdef _WIN64
             "nvapi64.dll"
-#    else
+    #else
             "nvapi.dll"
-#    endif
+    #endif
             ,
             1);
         FF_LIBRARY_LOAD_SYMBOL_MESSAGE(libnvapi, nvapi_QueryInterface)
-#    define FF_NVAPI_INTERFACE(iName, iOffset)                          \
-        __typeof__(&iName) ff##iName = ffnvapi_QueryInterface(iOffset); \
-        if (ff##iName == NULL) return "nvapi_QueryInterface " #iName " failed";
+    #define FF_NVAPI_INTERFACE(iName, iOffset)                          \
+        typeof(&iName) ff##iName = ffnvapi_QueryInterface(iOffset); \
+        if (ff##iName == nullptr) return "nvapi_QueryInterface " #iName " failed";
 
         FF_NVAPI_INTERFACE(nvapi_Initialize, NVAPI_INTERFACE_OFFSET_INITIALIZE)
         FF_NVAPI_INTERFACE(nvapi_Unload, NVAPI_INTERFACE_OFFSET_UNLOAD)
         FF_NVAPI_INTERFACE(nvapi_EnumPhysicalGPUs, NVAPI_INTERFACE_OFFSET_ENUM_PHYSICAL_GPUS)
         FF_NVAPI_INTERFACE(nvapi_GPU_GetRamType, NVAPI_INTERFACE_OFFSET_GPU_GET_RAM_TYPE)
         FF_NVAPI_INTERFACE(nvapi_GPU_GetGPUType, NVAPI_INTERFACE_OFFSET_GPU_GET_GPU_TYPE)
-#    undef FF_NVAPI_INTERFACE
+    #undef FF_NVAPI_INTERFACE
 
         if (ffnvapi_Initialize() < 0) {
             return "NvAPI_Initialize() failed";
@@ -68,10 +72,10 @@ static const char* detectMoreByNvapi(FFGpuDriverResult* result) {
         nvapiData.ffnvapi_Unload = ffnvapi_Unload;
 
         atexit((void*) ffnvapi_Unload);
-        libnvapi = NULL; // don't close nvapi
+        libnvapi = nullptr; // don't close nvapi
     }
 
-    if (nvapiData.ffnvapi_EnumPhysicalGPUs == NULL) {
+    if (nvapiData.ffnvapi_EnumPhysicalGPUs == nullptr) {
         return "loading nvapi library failed";
     }
 
@@ -94,7 +98,7 @@ static const char* detectMoreByNvapi(FFGpuDriverResult* result) {
     NvApiGPUMemoryType memType;
     if (result->memoryType && nvapiData.ffnvapi_GPU_GetRamType(gpuHandle, &memType) == 0) {
         switch (memType) {
-#    define FF_NVAPI_MEMORY_TYPE(type)                    \
+    #define FF_NVAPI_MEMORY_TYPE(type)                    \
         case NVAPI_GPU_MEMORY_TYPE_##type:                \
             ffStrbufSetStatic(result->memoryType, #type); \
             break;
@@ -115,7 +119,7 @@ static const char* detectMoreByNvapi(FFGpuDriverResult* result) {
             FF_NVAPI_MEMORY_TYPE(GDDR6)
             FF_NVAPI_MEMORY_TYPE(GDDR6X)
             FF_NVAPI_MEMORY_TYPE(GDDR7)
-#    undef FF_NVAPI_MEMORY_TYPE
+    #undef FF_NVAPI_MEMORY_TYPE
             default:
                 ffStrbufSetF(result->memoryType, "Unknown (%d)", memType);
                 break;
@@ -137,7 +141,7 @@ static const char* detectMoreByNvapi(FFGpuDriverResult* result) {
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 #endif
@@ -154,29 +158,33 @@ const char* ffDetectNvidiaGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverR
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetHandleByIndex_v2)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetHandleByPciBusId_v2)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetPciInfo_v3)
-        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetTemperature)
+        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetTemperatureV)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetMemoryInfo_v2)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetMemoryInfo)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetNumGpuCores)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetMaxClockInfo)
+        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetMaxPcieLinkGeneration)
+        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetMaxPcieLinkWidth)
+        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetCurrPcieLinkGeneration)
+        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetCurrPcieLinkWidth)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetUtilizationRates)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetBrand)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetIndex)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libnvml, nvmlData, nvmlDeviceGetName)
 
         if (ffnvmlInit_v2() != NVML_SUCCESS) {
-            nvmlData.ffnvmlDeviceGetNumGpuCores = NULL;
+            nvmlData.ffnvmlDeviceGetNumGpuCores = nullptr;
             return "nvmlInit_v2() failed";
         }
         atexit((void*) ffnvmlShutdown);
-        libnvml = NULL; // don't close nvml
+        libnvml = nullptr; // don't close nvml
     }
 
-    if (nvmlData.ffnvmlDeviceGetNumGpuCores == NULL) {
+    if (nvmlData.ffnvmlDeviceGetNumGpuCores == nullptr) {
         return "loading nvml library failed";
     }
 
-    nvmlDevice_t device = NULL;
+    nvmlDevice_t device = nullptr;
     if (cond->type & FF_GPU_DRIVER_CONDITION_TYPE_BUS_ID) {
         char pciBusIdStr[32];
         snprintf(pciBusIdStr, ARRAY_SIZE(pciBusIdStr), "%04x:%02x:%02x.%d", cond->pciBusId.domain, cond->pciBusId.bus, cond->pciBusId.device, cond->pciBusId.func);
@@ -191,7 +199,7 @@ const char* ffDetectNvidiaGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverR
             return "nvmlDeviceGetCount_v2() failed";
         }
 
-        for (uint32_t i = 0; i < count; i++, device = NULL) {
+        for (uint32_t i = 0; i < count; i++, device = nullptr) {
             if (nvmlData.ffnvmlDeviceGetHandleByIndex_v2(i, &device) != NVML_SUCCESS) {
                 continue;
             }
@@ -236,19 +244,22 @@ const char* ffDetectNvidiaGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverR
         unsigned int value;
         if (nvmlData.ffnvmlDeviceGetIndex(device, &value) == NVML_SUCCESS) {
             *result.index = value;
-#    ifdef _WIN32
+    #ifdef _WIN32
             // Don't bother loading nvapi for GPU type detection only
             if (result.memoryType) {
                 detectMoreByNvapi(&result);
             }
-#    endif
+    #endif
         }
     }
 
     if (result.temp) {
-        uint32_t value;
-        if (nvmlData.ffnvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &value) == NVML_SUCCESS) {
-            *result.temp = value;
+        nvmlTemperature_v1_t temp = {
+            .version = nvmlTemperature_v1,
+            .sensorType = NVML_TEMPERATURE_GPU,
+        };
+        if (nvmlData.ffnvmlDeviceGetTemperatureV(device, &temp) == NVML_SUCCESS) {
+            *result.temp = temp.temperature;
         }
     }
 
@@ -288,7 +299,27 @@ const char* ffDetectNvidiaGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverR
         }
     }
 
-    return NULL;
+    if (result.psMax) {
+        unsigned int value;
+        if (nvmlData.ffnvmlDeviceGetMaxPcieLinkGeneration(device, &value) == NVML_SUCCESS) {
+            result.psMax->gen = (uint16_t) value;
+        }
+        if (nvmlData.ffnvmlDeviceGetMaxPcieLinkWidth(device, &value) == NVML_SUCCESS) {
+            result.psMax->lanes = (uint16_t) value;
+        }
+    }
+
+    if (result.psCurr) {
+        unsigned int value;
+        if (nvmlData.ffnvmlDeviceGetCurrPcieLinkGeneration(device, &value) == NVML_SUCCESS) {
+            result.psCurr->gen = (uint16_t) value;
+        }
+        if (nvmlData.ffnvmlDeviceGetCurrPcieLinkWidth(device, &value) == NVML_SUCCESS) {
+            result.psCurr->lanes = (uint16_t) value;
+        }
+    }
+
+    return nullptr;
 
 #else
 

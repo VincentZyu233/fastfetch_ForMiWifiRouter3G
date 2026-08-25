@@ -2,6 +2,7 @@
 #include "common/windows/nt.h"
 
 #include <windows.h>
+#include <cfgmgr32.h>
 
 const char* ffDebugWin32Error(DWORD errorCode) {
     static char buffer[512];
@@ -9,12 +10,12 @@ const char* ffDebugWin32Error(DWORD errorCode) {
     wchar_t bufferW[256];
     ULONG len = FormatMessageW(
         FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
+        nullptr,
         (DWORD) errorCode,
         0,
         bufferW,
-        sizeof(buffer),
-        NULL);
+        ARRAY_SIZE(bufferW),
+        nullptr);
 
     if (len == 0) {
         snprintf(buffer, sizeof(buffer), "Unknown error code (%lu)", errorCode);
@@ -32,6 +33,10 @@ const char* ffDebugWin32Error(DWORD errorCode) {
     }
 
     return buffer;
+}
+
+const char* ffDebugConfigRet(CONFIGRET ret) {
+    return ffDebugWin32Error(CM_MapCrToWin32Err(ret, ERROR_INTERNAL_ERROR));
 }
 
 const char* ffDebugNtStatus(NTSTATUS status) {

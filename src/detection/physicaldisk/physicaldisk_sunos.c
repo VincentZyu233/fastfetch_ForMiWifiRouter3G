@@ -1,5 +1,5 @@
 #include "physicaldisk.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "sys/scsi/generic/inquiry.h"
 
 #include <libdevinfo.h>
@@ -103,5 +103,5 @@ const char* ffDetectPhysicalDisk(FFlist* result, FFPhysicalDiskOptions* options)
     di_walk_minor(rootNode, DDI_NT_BLOCK, DI_WALK_CLDFIRST, &(struct FFWalkTreeBundle) { options, result }, (void*) walkDevTree);
     di_fini(rootNode);
 
-    return NULL;
+    return nullptr;
 }

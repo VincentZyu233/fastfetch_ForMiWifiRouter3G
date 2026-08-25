@@ -2,20 +2,20 @@
 
 #if FF_HAVE_LIBZFS
 
-#    include "common/kmod.h"
+    #include "common/kmod.h"
 
-#    ifdef __sun
-#        include <libzfs.h>
-#        ifndef __illumos__
-// On Solaris 11, zpool_get_prop has only 5 arguments. #2173
-#            define ffzpool_get_prop(zhp, prop, buf, len, srctype, literal) \
+    #ifdef __sun
+        #include <libzfs.h>
+        #ifndef __illumos__
+            // On Solaris 11, zpool_get_prop has only 5 arguments. #2173
+            #define ffzpool_get_prop(zhp, prop, buf, len, srctype, literal) \
                 ffzpool_get_prop(zhp, prop, buf, len, srctype)
-#        endif
-#    else
-#        include "libzfs_simplified.h"
-#    endif
+        #endif
+    #else
+        #include "libzfs_simplified.h"
+    #endif
 
-#    include "common/library.h"
+    #include "common/library.h"
 
 typedef struct FFZfsData {
     FF_LIBRARY_SYMBOL(libzfs_fini)
@@ -43,7 +43,7 @@ typedef struct FFZfsData {
 static inline void cleanLibzfs(FFZfsData* data) {
     if (data->fflibzfs_fini && data->handle) {
         data->fflibzfs_fini(data->handle);
-        data->handle = NULL;
+        data->handle = nullptr;
     }
 }
 
@@ -85,14 +85,14 @@ const char* ffDetectZpool(FFlist* result /* list of FFZpoolResult */) {
         return "libzfs_init() failed";
     }
 
-    FF_A_CLEANUP(cleanLibzfs) FFZfsData data = {
+    [[gnu::cleanup(cleanLibzfs)]] FFZfsData data = {
         .handle = handle,
         .result = result,
     };
 
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(libzfs, zpool_name_to_prop);
 
-#    define FF_QUERY_ZPOOL_PROP_FROM_NAME(prop_name)                 \
+    #define FF_QUERY_ZPOOL_PROP_FROM_NAME(prop_name)                 \
         do {                                                         \
             data.props.prop_name = ffzpool_name_to_prop(#prop_name); \
             if (data.props.prop_name < 0)                            \
@@ -106,7 +106,7 @@ const char* ffDetectZpool(FFlist* result /* list of FFZpoolResult */) {
     FF_QUERY_ZPOOL_PROP_FROM_NAME(allocated);
     FF_QUERY_ZPOOL_PROP_FROM_NAME(fragmentation);
     FF_QUERY_ZPOOL_PROP_FROM_NAME(readonly);
-#    undef FF_QUERY_ZPOOL_PROP_FROM_NAME
+    #undef FF_QUERY_ZPOOL_PROP_FROM_NAME
 
     FF_LIBRARY_LOAD_SYMBOL_MESSAGE(libzfs, zpool_iter);
     FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libzfs, data, libzfs_fini);
@@ -118,12 +118,12 @@ const char* ffDetectZpool(FFlist* result /* list of FFZpoolResult */) {
         return "zpool_iter() failed";
     }
 
-    return NULL;
+    return nullptr;
 }
 
 #else
 
-const char* ffDetectZpool(FF_A_UNUSED FFlist* result) {
+const char* ffDetectZpool([[maybe_unused]] FFlist* result) {
     return "fastfetch was compiled without libzfs support";
 }
 

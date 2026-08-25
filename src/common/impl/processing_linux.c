@@ -1,7 +1,7 @@
 #include "fastfetch.h"
 #include "common/processing.h"
 #include "common/io.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "common/mallocHelper.h"
 
 #include <stdlib.h>
@@ -13,28 +13,28 @@
 #include <sys/wait.h>
 
 #if !(__ANDROID__ || __OpenBSD__)
-#    include <spawn.h>
+    #include <spawn.h>
 #endif
 
 #if defined(__FreeBSD__) || defined(__APPLE__)
-#    include <sys/types.h>
-#    include <sys/user.h>
-#    include <sys/sysctl.h>
+    #include <sys/types.h>
+    #include <sys/user.h>
+    #include <sys/sysctl.h>
 #endif
 #if defined(__APPLE__)
-#    include <libproc.h>
+    #include <libproc.h>
 #elif defined(__sun)
-#    include <procfs.h>
+    #include <procfs.h>
 #elif defined(__OpenBSD__)
-#    include <sys/param.h>
-#    include <sys/sysctl.h>
-#    include <kvm.h>
+    #include <sys/param.h>
+    #include <sys/sysctl.h>
+    #include <kvm.h>
 #elif defined(__NetBSD__)
-#    include <sys/types.h>
-#    include <sys/sysctl.h>
+    #include <sys/types.h>
+    #include <sys/sysctl.h>
 #elif defined(__HAIKU__)
-#    include <OS.h>
-#    include <image.h>
+    #include <OS.h>
+    #include <image.h>
 #endif
 
 #ifndef environ
@@ -79,7 +79,7 @@ const char* ffProcessSpawn(char* const argv[], bool useStdErr, FFProcessHandle* 
     posix_spawn_file_actions_adddup2(&file_actions, pipes[1], useStdErr ? STDERR_FILENO : STDOUT_FILENO);
     posix_spawn_file_actions_adddup2(&file_actions, nullFile, useStdErr ? STDOUT_FILENO : STDERR_FILENO);
 
-    static char* oldLang = NULL;
+    static char* oldLang = nullptr;
     static int langIndex = -1;
 
     if (langIndex >= 0) {
@@ -95,7 +95,7 @@ const char* ffProcessSpawn(char* const argv[], bool useStdErr, FFProcessHandle* 
         }
     }
     if (langIndex < 0) {
-        for (int i = 0; environ[i] != NULL; i++) {
+        for (int i = 0; environ[i] != nullptr; i++) {
             if (ffStrStartsWith(environ[i], "LANG=")) {
                 langIndex = i;
                 const char* langValue = environ[i] + 5; // Skip "LANG="
@@ -112,7 +112,7 @@ const char* ffProcessSpawn(char* const argv[], bool useStdErr, FFProcessHandle* 
         }
     }
 
-    int ret = posix_spawnp(&childPid, argv[0], &file_actions, NULL, argv, environ);
+    int ret = posix_spawnp(&childPid, argv[0], &file_actions, nullptr, argv, environ);
 
     if (oldLang) {
         environ[langIndex] = oldLang;
@@ -153,7 +153,7 @@ const char* ffProcessSpawn(char* const argv[], bool useStdErr, FFProcessHandle* 
     close(pipes[1]);
     outHandle->pid = childPid;
     outHandle->pipeRead = pipes[0];
-    return NULL;
+    return nullptr;
 }
 
 const char* ffProcessReadOutput(FFProcessHandle* handle, FFstrbuf* buffer) {
@@ -173,11 +173,11 @@ const char* ffProcessReadOutput(FFProcessHandle* handle, FFstrbuf* buffer) {
             int pollret = poll(&pollfd, 1, timeout);
             if (pollret == 0) {
                 kill(childPid, SIGTERM);
-                waitpid(childPid, NULL, 0);
+                waitpid(childPid, nullptr, 0);
                 return "poll(&pollfd, 1, timeout) timeout (try increasing --processing-timeout)";
             } else if (pollret < 0 || (pollfd.revents & POLLERR)) {
                 kill(childPid, SIGTERM);
-                waitpid(childPid, NULL, 0);
+                waitpid(childPid, nullptr, 0);
                 return pollret < 0
                     ? "poll(&pollfd, 1, timeout) error: pollret < 0"
                     : "poll(&pollfd, 1, timeout) error: pollfd.revents & POLLERR";
@@ -197,9 +197,9 @@ const char* ffProcessReadOutput(FFProcessHandle* handle, FFstrbuf* buffer) {
                     return "command not found";
                 }
                 // We only handle 127 as an error. See `getTerminalVersionUrxvt` in `terminalshell.c`
-                return NULL;
+                return nullptr;
             }
-            return NULL;
+            return nullptr;
         } else if (nRead < 0) {
             break;
         }
@@ -234,9 +234,9 @@ void ffProcessGetInfoLinux(pid_t pid, FFstrbuf* processName, FFstrbuf* exe, cons
 
             // For interpreters, try to find the real script path in the arguments
             if (ffStrStartsWith(name, "python")
-#    ifndef __ANDROID__
+    #ifndef __ANDROID__
                 || ffStrEquals(name, "guile") // for shepherd
-#    endif
+    #endif
             ) {
                 // `cmdline` always ends with a trailing '\0', and ffReadFileBuffer appends another \0
                 // So `exe->chars` is always double '\0' terminated
@@ -269,7 +269,7 @@ void ffProcessGetInfoLinux(pid_t pid, FFstrbuf* processName, FFstrbuf* exe, cons
             }
         }
 
-        if (exePath->length == 0) {
+        if (exePath->length == 0 && access(filePath, X_OK) == 0) {
             ffStrbufSetS(exePath, filePath);
         }
     }
@@ -278,11 +278,11 @@ void ffProcessGetInfoLinux(pid_t pid, FFstrbuf* processName, FFstrbuf* exe, cons
 
     size_t len = 0;
     int mibs[] = { CTL_KERN, KERN_PROCARGS2, pid };
-    if (sysctl(mibs, ARRAY_SIZE(mibs), NULL, &len, NULL, 0) == 0) { // try get arg0
+    if (sysctl(mibs, ARRAY_SIZE(mibs), nullptr, &len, nullptr, 0) == 0) { // try get arg0
         // don't know why if don't let len longer, proArgs2 and len will change during the following sysctl() in old MacOS version.
         len++;
         FF_AUTO_FREE char* const procArgs2 = malloc(len);
-        if (sysctl(mibs, ARRAY_SIZE(mibs), procArgs2, &len, NULL, 0) == 0) {
+        if (sysctl(mibs, ARRAY_SIZE(mibs), procArgs2, &len, nullptr, 0) == 0) {
             // https://gist.github.com/nonowarn/770696#file-getargv-c-L46
             uint32_t argc = *(uint32_t*) procArgs2;
             const char* realExePath = procArgs2 + sizeof(argc);
@@ -341,40 +341,40 @@ void ffProcessGetInfoLinux(pid_t pid, FFstrbuf* processName, FFstrbuf* exe, cons
     static_assert(ARG_MAX > PATH_MAX, "");
 
     if (exePath && sysctl((int[]) { CTL_KERN,
-#    if __FreeBSD__
+    #if __FreeBSD__
                               KERN_PROC,
                               KERN_PROC_PATHNAME,
                               pid
-#    else
+    #else
                               KERN_PROC_ARGS,
                               pid,
                               KERN_PROC_PATHNAME
-#    endif
+    #endif
                           },
                        4,
                        args,
                        &size,
-                       NULL,
+                       nullptr,
                        0) == 0)
         ffStrbufSetNS(exePath, (uint32_t) (size - 1), args);
 
     size = ARG_MAX;
     if (sysctl(
             (int[]) { CTL_KERN,
-#    if __FreeBSD__
+    #if __FreeBSD__
                 KERN_PROC,
                 KERN_PROC_ARGS,
                 pid
-#    else
+    #else
                 KERN_PROC_ARGS,
                 pid,
                 KERN_PROC_ARGV,
-#    endif
+    #endif
             },
             4,
             args,
             &size,
-            NULL,
+            nullptr,
             0) == 0) {
         char* arg0 = args;
         size_t arg0Len = strlen(args);
@@ -423,7 +423,7 @@ void ffProcessGetInfoLinux(pid_t pid, FFstrbuf* processName, FFstrbuf* exe, cons
 
 #elif defined(__OpenBSD__)
 
-    kvm_t* kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, NULL);
+    kvm_t* kd = kvm_open(nullptr, nullptr, nullptr, KVM_NO_FILES, nullptr);
     int count = 0;
     const struct kinfo_proc* proc = kvm_getprocs(kd, KERN_PROC_PID, pid, sizeof(struct kinfo_proc), &count);
     if (proc) {
@@ -476,9 +476,9 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
 #if defined(__linux__) || defined(__GNU__)
 
     char procFilePath[64];
-#    if __linux__
+    #if __linux__
     if (ppid || tty)
-#    endif
+    #endif
     {
         snprintf(procFilePath, sizeof(procFilePath), "/proc/%d/stat", (int) pid);
         char buf[PROC_FILE_BUFFSIZ];
@@ -488,7 +488,7 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
         }
         buf[nRead] = '\0'; // pid (comm) state ppid pgrp session tty
 
-        const char* pState = NULL;
+        const char* pState = nullptr;
 
         {
             // comm in `/proc/pid/stat` is not encoded, and may contain ' ', ')' or even `\n`
@@ -509,9 +509,9 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
             pState = end + 2; // skip ") "
         }
 
-#    if !__linux__
+    #if !__linux__
         if (ppid || tty)
-#    endif
+    #endif
         {
             int ppid_, tty_;
             if (sscanf(pState + 2, "%d %*d %*d %d", &ppid_, &tty_) < 2) {
@@ -526,7 +526,7 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
             }
         }
     }
-#    if __linux__
+    #if __linux__
     else {
         snprintf(procFilePath, sizeof(procFilePath), "/proc/%d/comm", (int) pid);
         ssize_t nRead = ffReadFileBuffer(procFilePath, name);
@@ -535,18 +535,18 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
         }
         ffStrbufTrimRightSpace(name);
     }
-#    endif
+    #endif
 
 #elif defined(__APPLE__)
 
     struct kinfo_proc proc;
     size_t size = sizeof(proc);
     if (sysctl(
-            (int[]) { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid }, 4, &proc, &size, NULL, 0)) {
+            (int[]) { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid }, 4, &proc, &size, nullptr, 0)) {
         return "sysctl(KERN_PROC_PID) failed";
     }
 
-    ffStrbufSetS(name, proc.kp_proc.p_comm); // trancated to 16 chars
+    ffStrbufSetS(name, proc.kp_proc.p_comm); // truncated to 16 chars
     if (ppid) {
         *ppid = (pid_t) proc.kp_eproc.e_ppid;
     }
@@ -558,17 +558,17 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
 
 #elif defined(__FreeBSD__)
 
-#    ifdef __DragonFly__
-#        define ki_comm kp_comm
-#        define ki_ppid kp_ppid
-#        define ki_tdev kp_tdev
-#        define ki_flag kp_flags
-#    endif
+    #ifdef __DragonFly__
+        #define ki_comm kp_comm
+        #define ki_ppid kp_ppid
+        #define ki_tdev kp_tdev
+        #define ki_flag kp_flags
+    #endif
 
     struct kinfo_proc proc;
     size_t size = sizeof(proc);
     if (sysctl(
-            (int[]) { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid }, 4, &proc, &size, NULL, 0)) {
+            (int[]) { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid }, 4, &proc, &size, nullptr, 0)) {
         return "sysctl(KERN_PROC_PID) failed";
     }
 
@@ -580,7 +580,7 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
         if (proc.ki_tdev != NODEV && proc.ki_flag & P_CONTROLT) {
             const char* ttyName = devname(proc.ki_tdev, S_IFCHR);
             if (ffStrStartsWith(ttyName, "pts/")) {
-                *tty = (int32_t) strtol(ttyName + strlen("pts/"), NULL, 10);
+                *tty = (int32_t) strtol(ttyName + strlen("pts/"), nullptr, 10);
             } else {
                 *tty = -1;
             }
@@ -594,7 +594,7 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
     struct kinfo_proc2 proc;
     size_t size = sizeof(proc);
     if (sysctl(
-            (int[]) { CTL_KERN, KERN_PROC2, KERN_PROC_PID, pid, sizeof(proc), 1 }, 6, &proc, &size, NULL, 0) != 0) {
+            (int[]) { CTL_KERN, KERN_PROC2, KERN_PROC_PID, pid, sizeof(proc), 1 }, 6, &proc, &size, nullptr, 0) != 0) {
         return "sysctl(KERN_PROC_PID) failed";
     }
 
@@ -606,7 +606,7 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
         if (proc.p_flag & P_CONTROLT) {
             const char* ttyName = devname(proc.p_tdev, S_IFCHR);
             if (ffStrStartsWith(ttyName, "pts/")) {
-                *tty = (int32_t) strtol(ttyName + strlen("pts/"), NULL, 10);
+                *tty = (int32_t) strtol(ttyName + strlen("pts/"), nullptr, 10);
             } else {
                 *tty = -1;
             }
@@ -633,7 +633,7 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
 
 #elif defined(__OpenBSD__)
 
-    kvm_t* kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, NULL);
+    kvm_t* kd = kvm_open(nullptr, nullptr, nullptr, KVM_NO_FILES, nullptr);
     int count = 0;
     const struct kinfo_proc* proc = kvm_getprocs(kd, KERN_PROC_PID, pid, sizeof(struct kinfo_proc), &count);
     if (proc) {
@@ -668,5 +668,5 @@ const char* ffProcessGetBasicInfoLinux(pid_t pid, FFstrbuf* name, pid_t* ppid, i
 
 #endif
 
-    return NULL;
+    return nullptr;
 }

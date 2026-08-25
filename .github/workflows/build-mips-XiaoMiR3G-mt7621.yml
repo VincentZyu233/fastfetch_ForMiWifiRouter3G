@@ -1,89 +1,123 @@
-name: Build Fastfetch for MIPS (小米路由器 XiaoMi R3G MT7621)
+name: Build Fastfetch for MIPS (Xiaomi Mi Router 3G MT7621)
 
 on:
   push:
-    branches: [ dev, main ]
+    branches: [dev, main]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      short_sha: ${{ steps.metadata.outputs.short_sha }}
+      asset_name: ${{ steps.metadata.outputs.asset_name }}
+      release_tag: ${{ steps.metadata.outputs.release_tag }}
+      sha256: ${{ steps.metadata.outputs.sha256 }}
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # 获取完整历史以读取 commit message
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential xz-utils wget
 
-      - name: Download & Setup OpenWrt SDK
+      - name: Download and set up OpenWrt SDK
         run: |
           echo "::group::Downloading OpenWrt SDK"
           wget -q --show-progress https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
           echo "::endgroup::"
-          
+
           echo "::group::Extracting SDK"
           tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          echo "SDK_ROOT=$(pwd)/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64" >> $GITHUB_ENV
+          echo "SDK_ROOT=$(pwd)/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64" >> "$GITHUB_ENV"
           echo "::endgroup::"
 
       - name: Compile Fastfetch
         run: |
-          export SYSROOT=$SDK_ROOT/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl
-          export PATH=$SYSROOT/bin:$PATH
-          export STAGING_DIR=$SDK_ROOT/staging_dir
-          
-          mkdir build_mips && cd build_mips
-          
-          cmake .. \
+          export SYSROOT="$SDK_ROOT/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl"
+          export PATH="$SYSROOT/bin:$PATH"
+          export STAGING_DIR="$SDK_ROOT/staging_dir"
+
+          cmake -S . -B build_mips \
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=mips \
             -DCMAKE_C_COMPILER=mipsel-openwrt-linux-gcc \
-            -DCMAKE_STAGING_PREFIX=$SDK_ROOT/staging_dir/target-mipsel_24kc_musl \
-            -DCMAKE_FIND_ROOT_PATH=$SYSROOT \
+            -DCMAKE_STAGING_PREFIX="$SDK_ROOT/staging_dir/target-mipsel_24kc_musl" \
+            -DCMAKE_FIND_ROOT_PATH="$SYSROOT" \
             -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
             -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
             -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
             -DCMAKE_EXE_LINKER_FLAGS="-static" \
             -DCMAKE_C_FLAGS="--sysroot=$SYSROOT -msoft-float -mips32r2 -nostdinc -I$SYSROOT/include -I$SYSROOT/usr/include" \
+            -DSET_TWEAK=OFF \
             -DENABLE_ZLIB=OFF \
             -DENABLE_SQLITE3=OFF \
             -DENABLE_DRM=OFF -DENABLE_X11=OFF -DENABLE_WAYLAND=OFF -DENABLE_VULKAN=OFF -DENABLE_DBUS=OFF -DENABLE_PCI=OFF
-          
-          make -j$(nproc)
-          mipsel-openwrt-linux-strip fastfetch
-          mv fastfetch fastfetch-linux-mipsel-mt7621
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        # 检测 commit message 是否包含指定关键词
-        if: |
-          contains(github.event.head_commit.message, 'build release') || 
-          contains(github.event.head_commit.message, 'build action')
-        with:
-          # 使用当前时间戳或 commit hash 作为唯一的 tag 名称
-          tag_name: release-${{ github.sha }}
-          name: "Fastfetch Auto Release (MT7621)"
-          files: build_mips/fastfetch-linux-mipsel-mt7621
-          body: |
-            ### Fastfetch for XiaoMi Router 3G (MT7621)
-            
-            > **Notice:** This binary was automatically triggered and compiled by **GitHub Actions** via commit message keywords.
-            
-            - **Target Hardware:** Xiaomi Mi Router 3G / MT7621
-            - **Architecture:** MIPS (mipsel)
-            - **Build ID:** `${{ github.sha }}`
-            - **Build Type:** Static Linked
-          draft: false
-          prerelease: false
+          cmake --build build_mips --parallel
+          "$SYSROOT/bin/mipsel-openwrt-linux-strip" build_mips/fastfetch
 
-      - name: Upload Artifact
+      - name: Prepare versioned artifact
+        id: metadata
+        run: |
+          version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build_mips/CMakeCache.txt)
+          test -n "$version"
+
+          short_sha=$(git rev-parse --short=8 HEAD)
+          asset_name="fastfetch-linux-mipsel-mt7621-${version}-${short_sha}"
+          release_tag="mt7621-${version}-${short_sha}"
+
+          mv build_mips/fastfetch "build_mips/$asset_name"
+          sha256=$(sha256sum "build_mips/$asset_name" | awk '{print $1}')
+
+          {
+            echo "version=$version"
+            echo "short_sha=$short_sha"
+            echo "asset_name=$asset_name"
+            echo "release_tag=$release_tag"
+            echo "sha256=$sha256"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fastfetch-mips-xiaomi-r3g
-          path: build_mips/fastfetch-linux-mipsel-mt7621
+          name: ${{ steps.metadata.outputs.asset_name }}
+          path: build_mips/${{ steps.metadata.outputs.asset_name }}
+
+  release:
+    needs: build
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[build-release]') ||
+      contains(github.event.head_commit.message, '[build release]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.asset_name }}
+          path: release
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build.outputs.release_tag }}
+          name: Fastfetch ${{ needs.build.outputs.version }} for MT7621
+          files: release/${{ needs.build.outputs.asset_name }}
+          body: |
+            ### Fastfetch for Xiaomi Mi Router 3G (MT7621)
+
+            - Fastfetch version: `${{ needs.build.outputs.version }}`
+            - Architecture: `mipsel` (MT7621 / MIPS 1004Kc)
+            - OpenWrt SDK: `23.05.4`
+            - Source commit: `${{ github.sha }}`
+            - Build type: `static`
+            - SHA-256: `${{ needs.build.outputs.sha256 }}`
+          draft: false
+          prerelease: false

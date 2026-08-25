@@ -1,6 +1,5 @@
 #include "os.h"
-#include "common/library.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "common/windows/registry.h"
 #include "common/windows/unicode.h"
 
@@ -9,14 +8,14 @@
 PWSTR WINAPI BrandingFormatString(PCWSTR format);
 
 static bool getCodeName(FFOSResult* os) {
-    FF_AUTO_CLOSE_FD HANDLE hKey = NULL;
-    if (!ffRegOpenKeyForRead(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", &hKey, NULL)) {
+    FF_AUTO_CLOSE_FD HANDLE hKey = nullptr;
+    if (!ffRegOpenKeyForRead(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", &hKey, nullptr)) {
         return false;
     }
 
-    if (!ffRegReadStrbuf(hKey, L"DisplayVersion", &os->codename, NULL)) {
-        if (!ffRegReadStrbuf(hKey, L"CSDVersion", &os->codename, NULL)) {    // For Windows 7 and Windows 8
-            if (!ffRegReadStrbuf(hKey, L"ReleaseId", &os->codename, NULL)) { // For old Windows 10
+    if (!ffRegReadStrbuf(hKey, L"DisplayVersion", &os->codename, nullptr)) {
+        if (!ffRegReadStrbuf(hKey, L"CSDVersion", &os->codename, nullptr)) {    // For Windows 7 and Windows 8
+            if (!ffRegReadStrbuf(hKey, L"ReleaseId", &os->codename, nullptr)) { // For old Windows 10
                 return false;
             }
         }
@@ -40,9 +39,9 @@ void ffDetectOSImpl(FFOSResult* os) {
 
     if (os->variant.length == 0) // Windows PE?
     {
-        FF_AUTO_CLOSE_FD HANDLE hKey = NULL;
-        if (ffRegOpenKeyForRead(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", &hKey, NULL)) {
-            ffRegReadStrbuf(hKey, L"ProductName", &os->variant, NULL);
+        FF_AUTO_CLOSE_FD HANDLE hKey = nullptr;
+        if (ffRegOpenKeyForRead(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", &hKey, nullptr)) {
+            ffRegReadStrbuf(hKey, L"ProductName", &os->variant, nullptr);
         }
     }
 
@@ -56,6 +55,9 @@ void ffDetectOSImpl(FFOSResult* os) {
         if (ffStrbufStartsWithS(&os->variant, "Server ")) {
             ffStrbufAppendS(&os->name, " Server");
             ffStrbufSubstrAfter(&os->variant, strlen(" Server") - 1);
+        } else if (ffStrbufStartsWithS(&os->variant, "Embedded ")) {
+            ffStrbufAppendS(&os->name, " Embedded");
+            ffStrbufSubstrAfter(&os->variant, strlen(" Embedded") - 1);
         }
 
         if (ffStrbufStartsWithIgnCaseS(&os->variant, "(TM) ")) {

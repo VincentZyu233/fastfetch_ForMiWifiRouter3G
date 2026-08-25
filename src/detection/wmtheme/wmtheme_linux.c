@@ -3,7 +3,7 @@
 #include "common/properties.h"
 #include "common/parsing.h"
 #include "common/settings.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "common/mallocHelper.h"
 #include "detection/gtk_qt/gtk_qt.h"
 #include "detection/displayserver/displayserver.h"
@@ -15,7 +15,7 @@ static bool detectWMThemeFromConfigFile(const char* configFile, const char* them
     }
 
     if (themeOrError->length == 0) {
-        if (defaultValue == NULL) {
+        if (defaultValue == nullptr) {
             ffStrbufAppendF(themeOrError, "Couldn't find WM theme in %s", configFile);
             return false;
         }
@@ -77,7 +77,7 @@ ok:
 }
 
 static bool detectMutter(FFstrbuf* themeOrError) {
-    const char* theme = ffSettingsGetGnome("/org/gnome/shell/extensions/user-theme/name", "org.gnome.shell.extensions.user-theme", NULL, "name", FF_VARIANT_TYPE_STRING).strValue;
+    const char* theme = ffSettingsGetGnome("/org/gnome/shell/extensions/user-theme/name", "org.gnome.shell.extensions.user-theme", nullptr, "name", FF_VARIANT_TYPE_STRING).strValue;
     if (ffStrSet(theme)) {
         ffStrbufAppendS(themeOrError, theme);
         return true;
@@ -87,20 +87,20 @@ static bool detectMutter(FFstrbuf* themeOrError) {
 }
 
 static bool detectMuffin(FFstrbuf* themeOrError) {
-    FF_AUTO_FREE const char* name = ffSettingsGetGnome("/org/cinnamon/theme/name", "org.cinnamon.theme", NULL, "name", FF_VARIANT_TYPE_STRING).strValue;
-    FF_AUTO_FREE const char* theme = ffSettingsGetGnome("/org/cinnamon/desktop/wm/preferences/theme", "org.cinnamon.desktop.wm.preferences", NULL, "theme", FF_VARIANT_TYPE_STRING).strValue;
+    FF_AUTO_FREE const char* name = ffSettingsGetGnome("/org/cinnamon/theme/name", "org.cinnamon.theme", nullptr, "name", FF_VARIANT_TYPE_STRING).strValue;
+    FF_AUTO_FREE const char* theme = ffSettingsGetGnome("/org/cinnamon/desktop/wm/preferences/theme", "org.cinnamon.desktop.wm.preferences", nullptr, "theme", FF_VARIANT_TYPE_STRING).strValue;
 
-    if (name == NULL && theme == NULL) {
+    if (name == nullptr && theme == nullptr) {
         ffStrbufAppendS(themeOrError, "Couldn't find muffin theme in GSettings / DConf");
         return false;
     }
 
-    if (name == NULL) {
+    if (name == nullptr) {
         ffStrbufAppendS(themeOrError, theme);
         return true;
     }
 
-    if (theme == NULL) {
+    if (theme == nullptr) {
         ffStrbufAppendS(themeOrError, name);
         return true;
     }
@@ -112,7 +112,7 @@ static bool detectMuffin(FFstrbuf* themeOrError) {
 static bool detectXFWM4(FFstrbuf* themeOrError) {
     const char* theme = ffSettingsGetXFConf("xfwm4", "/general/theme", FF_VARIANT_TYPE_STRING).strValue;
 
-    if (theme == NULL) {
+    if (theme == nullptr) {
         ffStrbufAppendS(themeOrError, "Couldn't find xfwm4::/general/theme in XFConf");
         return false;
     }
@@ -142,22 +142,22 @@ static bool detectOpenbox(const FFstrbuf* dePrettyName, FFstrbuf* themeOrError) 
     }
 
     const char* themeStart = strstr(content.chars, "<theme>");
-    if (themeStart == NULL) {
+    if (themeStart == nullptr) {
         goto theme_not_found;
     }
 
     const char* themeEnd = strstr(themeStart, "</theme>");
-    if (__builtin_expect(themeEnd == NULL, false)) { // very rare case
+    if (__builtin_expect(themeEnd == nullptr, false)) { // very rare case
         goto theme_not_found;
     }
 
     const char* nameStart = strstr(themeStart, "<name>");
-    if (nameStart == NULL) {
+    if (nameStart == nullptr) {
         goto name_not_found;
     }
 
     const char* nameEnd = strstr(nameStart, "</name>");
-    if (nameEnd == NULL || nameEnd > themeEnd) { // (nameEnd > themeEnd) means name is not a theme's child
+    if (nameEnd == nullptr || nameEnd > themeEnd) { // (nameEnd > themeEnd) means name is not a theme's child
         goto name_not_found;
     }
 
@@ -180,6 +180,112 @@ name_not_found:
     return false;
 }
 
+static bool detectCosmicComp(FFstrbuf* themeOrError) {
+    FF_STRBUF_AUTO_DESTROY path = ffStrbufCreateCopy(FF_LIST_FIRST(FFstrbuf, instance.state.platform.configDirs));
+    ffStrbufAppendS(&path, "cosmic/");
+    uint32_t basePathLength = path.length;
+
+    const char* variant;
+    {
+        char isDarkC;
+        ffStrbufAppendS(&path, "com.system76.CosmicTheme.Mode/v1/is_dark");
+        if (ffReadFileData(path.chars, 1, &isDarkC) == 1) {
+            variant = isDarkC == 't' || isDarkC == '1' ? "Dark" : "Light";
+        } else {
+            ffStrbufAppendF(themeOrError, "Couldn't read cosmic theme mode from %s", path.chars);
+            return false;
+        }
+        ffStrbufSubstrBefore(&path, basePathLength);
+    }
+
+    FF_STRBUF_AUTO_DESTROY name = ffStrbufCreate();
+    ffStrbufAppendF(&path, "com.system76.CosmicTheme.%s/v1/name", variant);
+    if (ffReadFileBuffer(path.chars, &name)) {
+        ffStrbufTrimSpace(&name);
+        ffStrbufTrim(&name, '"');
+    }
+    ffStrbufSubstrBefore(&path, basePathLength);
+
+    if (name.length > 0) {
+        ffStrbufAppend(themeOrError, &name);
+    } else {
+        ffStrbufAppendS(themeOrError, variant);
+    }
+
+    FF_STRBUF_AUTO_DESTROY accent = ffStrbufCreate();
+    ffStrbufAppendF(&path, "com.system76.CosmicTheme.%s/v1/accent", variant);
+    if (ffReadFileBuffer(path.chars, &accent)) {
+        const char* baseStart = strstr(accent.chars, "base:");
+        if (baseStart != nullptr) {
+            const char* contentStart = strchr(baseStart, '(');
+            if (contentStart != nullptr) {
+                int depth = 1;
+                const char* contentEnd = contentStart + 1;
+                while (*contentEnd != '\0' && depth > 0) {
+                    if (*contentEnd == '(') {
+                        ++depth;
+                    } else if (*contentEnd == ')') {
+                        --depth;
+                    }
+                    ++contentEnd;
+                }
+
+                if (depth == 0) {
+                    double red = 0.0, green = 0.0, blue = 0.0, alpha = 1.0;
+                    bool ok = true;
+                    for (uint32_t i = 0; i < 4; ++i) {
+                        const char* key =
+                            i == 0 ? "red:" : (i == 1 ? "green:" : (i == 2 ? "blue:" : "alpha:"));
+                        const char* componentStart = strstr(contentStart, key);
+                        if (componentStart == nullptr || componentStart >= contentEnd) {
+                            ok = false;
+                            break;
+                        }
+
+                        componentStart += strlen(key);
+                        char* componentEnd = nullptr;
+                        double value = strtod(componentStart, &componentEnd);
+                        if (componentEnd == componentStart) {
+                            ok = false;
+                            break;
+                        }
+
+                        if (i == 0) {
+                            red = value;
+                        } else if (i == 1) {
+                            green = value;
+                        } else if (i == 2) {
+                            blue = value;
+                        } else {
+                            alpha = value;
+                        }
+                    }
+
+                    if (ok) {
+                        uint32_t r = red <= 0.0 ? 0 : (red >= 1.0 ? 255 : (uint32_t) (red * 255.0 + 0.5));
+                        uint32_t g = green <= 0.0 ? 0 : (green >= 1.0 ? 255 : (uint32_t) (green * 255.0 + 0.5));
+                        uint32_t b = blue <= 0.0 ? 0 : (blue >= 1.0 ? 255 : (uint32_t) (blue * 255.0 + 0.5));
+                        uint32_t a = alpha <= 0.0 ? 0 : (alpha >= 1.0 ? 255 : (uint32_t) (alpha * 255.0 + 0.5));
+                        uint32_t rgb = (r << 16) | (g << 8) | b;
+                        if (a == 255) {
+                            ffStrbufAppendF(themeOrError, " - #%06X", rgb);
+                        } else {
+                            ffStrbufAppendF(themeOrError, " - #%06X%02X", rgb, a);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ffStrbufSubstrBefore(&path, basePathLength);
+
+    if (name.length > 0) {
+        ffStrbufAppendF(themeOrError, " (%s)", variant);
+    }
+
+    return true;
+}
+
 bool ffDetectWmTheme(FFstrbuf* themeOrError) {
     const FFDisplayServerResult* wm = ffConnectDisplayServer();
 
@@ -190,6 +296,10 @@ bool ffDetectWmTheme(FFstrbuf* themeOrError) {
 
     if (ffStrbufIgnCaseEqualS(&wm->wmPrettyName, FF_WM_PRETTY_KWIN)) {
         return detectWMThemeFromConfigFile("kwinrc", "theme =", "Breeze", themeOrError);
+    }
+
+    if (ffStrbufIgnCaseEqualS(&wm->wmPrettyName, FF_WM_PRETTY_COSMIC_COMP)) {
+        return detectCosmicComp(themeOrError);
     }
 
     if (
@@ -213,11 +323,15 @@ bool ffDetectWmTheme(FFstrbuf* themeOrError) {
     }
 
     if (ffStrbufIgnCaseEqualS(&wm->wmPrettyName, FF_WM_PRETTY_MARCO)) {
-        return detectWMThemeFromSettings("/org/mate/Marco/general/theme", "org.mate.Marco.general", NULL, "theme", themeOrError);
+        return detectWMThemeFromSettings("/org/mate/Marco/general/theme", "org.mate.Marco.general", nullptr, "theme", themeOrError);
     }
 
     if (ffStrbufIgnCaseEqualS(&wm->wmPrettyName, FF_WM_PRETTY_OPENBOX)) {
         return detectOpenbox(&wm->dePrettyName, themeOrError);
+    }
+
+    if (ffStrbufIgnCaseEqualS(&wm->wmPrettyName, FF_WM_PRETTY_ENLIGHTENMENT)) {
+        return detectGTKThemeAsWMTheme(themeOrError);
     }
 
     ffStrbufAppendS(themeOrError, "Unknown WM: ");

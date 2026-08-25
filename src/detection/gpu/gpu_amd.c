@@ -6,7 +6,7 @@
 #include "common/debug.h"
 
 // Helper function to convert ADL status code to string
-FF_A_UNUSED static const char* ffAdlStatusToString(int status) {
+[[maybe_unused]] static const char* ffAdlStatusToString(int status) {
     switch (status) {
 #define FF_ADL_STATUS_CASE(name) \
     case name:                   \
@@ -52,6 +52,7 @@ struct FFAdlData {
     FF_LIBRARY_SYMBOL(ADL2_Adapter_MemoryInfo2_Get)
     FF_LIBRARY_SYMBOL(ADL2_Adapter_DedicatedVRAMUsage_Get)
     FF_LIBRARY_SYMBOL(ADL2_Adapter_ASICFamilyType_Get)
+    FF_LIBRARY_SYMBOL(ADL2_Adapter_ChipSetInfo_Get)
     FF_LIBRARY_SYMBOL(ADL2_Overdrive_Caps)
     FF_LIBRARY_SYMBOL(ADL2_OverdriveN_CapabilitiesX2_Get)
     FF_LIBRARY_SYMBOL(ADL2_OverdriveN_SystemClocksX2_Get)
@@ -71,7 +72,7 @@ static void shutdownAdl() {
     if (adlData.apiHandle) {
         FF_DEBUG("Destroying ADL context");
         adlData.ffADL2_Main_Control_Destroy(adlData.apiHandle);
-        adlData.apiHandle = NULL;
+        adlData.apiHandle = nullptr;
     }
 }
 
@@ -89,6 +90,7 @@ const char* ffDetectAmdGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverResu
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_Adapter_MemoryInfo2_Get)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_Adapter_DedicatedVRAMUsage_Get)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_Adapter_ASICFamilyType_Get)
+        FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_Adapter_ChipSetInfo_Get)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_Overdrive_Caps)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_OverdriveN_CapabilitiesX2_Get)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(atiadl, adlData, ADL2_OverdriveN_SystemClocksX2_Get)
@@ -108,7 +110,7 @@ const char* ffDetectAmdGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverResu
         }
 
         atexit(shutdownAdl);
-        atiadl = NULL; // don't close atiadl
+        atiadl = nullptr; // don't close atiadl
         FF_DEBUG("ADL initialization complete");
     }
 
@@ -117,7 +119,7 @@ const char* ffDetectAmdGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverResu
         return "ffADL2_Main_Control_Create() failed";
     }
 
-    FF_AUTO_FREE AdapterInfo* devices = NULL;
+    FF_AUTO_FREE AdapterInfo* devices = nullptr;
     int numDevices = 0;
     int adapterResult = adlData.ffADL2_Adapter_AdapterInfoX3_Get(adlData.apiHandle, -1, &numDevices, &devices);
     FF_DEBUG("ADL2_Adapter_AdapterInfoX3_Get returned %s (%d)", ffAdlStatusToString(adapterResult), adapterResult);
@@ -129,7 +131,7 @@ const char* ffDetectAmdGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverResu
         return "ffADL2_Adapter_AdapterInfoX3_Get() failed";
     }
 
-    const AdapterInfo* device = NULL;
+    const AdapterInfo* device = nullptr;
     for (int iDev = 0; iDev < numDevices; iDev++) {
         if (cond->type & FF_GPU_DRIVER_CONDITION_TYPE_BUS_ID) {
             FF_DEBUG("Checking device %d: bus=%d, device=%d, func=%d against requested bus=%u, device=%u, func=%u",
@@ -231,6 +233,40 @@ const char* ffDetectAmdGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverResu
     if (result.name) {
         ffStrbufSetS(result.name, device->strAdapterName);
         FF_DEBUG("Setting adapter name: %s; UDID: %s, Present: %d, Exist: %d", device->strAdapterName, device->strUDID, device->iPresent, device->iExist);
+    }
+
+    if (result.psMax || result.psCurr) {
+        ADLChipSetInfo chipSetInfo;
+        int status = adlData.ffADL2_Adapter_ChipSetInfo_Get(adlData.apiHandle, device->iAdapterIndex, &chipSetInfo);
+        FF_DEBUG("ADL2_Adapter_ChipSetInfo_Get returned %s (%d)", ffAdlStatusToString(status), status);
+
+        if (status == ADL_OK) {
+            FF_DEBUG("Chipset info - iBusSpeedType: %d, iMaxPCIELaneWidth: %d", chipSetInfo.iBusSpeedType, chipSetInfo.iMaxPCIELaneWidth);
+            if (result.psMax) {
+                if (chipSetInfo.iBusSpeedType >= 2) {
+                    result.psMax->gen = (uint16_t) (chipSetInfo.iBusSpeedType - 2);
+                    FF_DEBUG("Got PCIe Max Gen: %u", result.psMax->gen);
+                }
+                if (chipSetInfo.iMaxPCIELaneWidth > 0) {
+                    result.psMax->lanes = (uint16_t) chipSetInfo.iMaxPCIELaneWidth;
+                    FF_DEBUG("Got PCIe Max Lanes: %u", result.psMax->lanes);
+                }
+            }
+
+            FF_DEBUG("Chipset info - iBusType: %d, iCurrentPCIELaneWidth: %d", chipSetInfo.iBusType, chipSetInfo.iCurrentPCIELaneWidth);
+            if (result.psCurr) {
+                if (chipSetInfo.iBusType >= 2) {
+                    result.psCurr->gen = (uint16_t) (chipSetInfo.iBusType - 2);
+                    FF_DEBUG("Got PCIe Current Gen: %u", result.psCurr->gen);
+                }
+                if (chipSetInfo.iCurrentPCIELaneWidth > 0) {
+                    result.psCurr->lanes = (uint16_t) chipSetInfo.iCurrentPCIELaneWidth;
+                    FF_DEBUG("Got PCIe Current Lanes: %u", result.psCurr->lanes);
+                }
+            }
+        } else {
+            FF_DEBUG("Failed to get chipset information");
+        }
     }
 
     int odVersion = 0;
@@ -456,5 +492,5 @@ const char* ffDetectAmdGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverResu
         return "Unknown Overdrive version";
     }
     FF_DEBUG("AMD GPU detection complete - returning success");
-    return NULL;
+    return nullptr;
 }

@@ -6,10 +6,10 @@
 #include <sys/ioctl.h>
 
 #if FF_HAVE_LINUX_VIDEODEV2
-#    include <linux/videodev2.h>
+    #include <linux/videodev2.h>
 #elif __has_include(<sys/videoio.h>) // OpenBSD
-#    include <sys/videoio.h>
-#    define FF_HAVE_LINUX_VIDEODEV2 1
+    #include <sys/videoio.h>
+    #define FF_HAVE_LINUX_VIDEODEV2 1
 #endif
 
 const char* ffDetectCamera(FFlist* result) {
@@ -86,7 +86,7 @@ const char* ffDetectCamera(FFlist* result) {
         camera->height = fmt.fmt.pix.height;
     }
 
-    return NULL;
+    return nullptr;
 #else
     FF_UNUSED(result);
     return "Fastfetch was compiled without <linux/videodev2.h>";

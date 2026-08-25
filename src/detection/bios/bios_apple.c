@@ -13,7 +13,7 @@ const char* ffDetectBios(FFBiosResult* bios) {
         return "IODeviceTree:/rom not found";
     }
 
-    FF_CFTYPE_AUTO_RELEASE CFMutableDictionaryRef deviceRomProps = NULL;
+    FF_CFTYPE_AUTO_RELEASE CFMutableDictionaryRef deviceRomProps = nullptr;
     if (IORegistryEntryCreateCFProperties(deviceRom, &deviceRomProps, kCFAllocatorDefault, kNilOptions) != kIOReturnSuccess) {
         return "IORegistryEntryCreateCFProperties(deviceRom) failed";
     }
@@ -38,9 +38,10 @@ const char* ffDetectBios(FFBiosResult* bios) {
 
     FF_IOOBJECT_AUTO_RELEASE io_registry_entry_t deviceChosen = IORegistryEntryFromPath(MACH_PORT_NULL, "IODeviceTree:/chosen");
     if (deviceChosen) {
-        FF_CFTYPE_AUTO_RELEASE CFStringRef systemFirmwareVersion = IORegistryEntryCreateCFProperty(deviceChosen, CFSTR("system-firmware-version"), kCFAllocatorDefault, kNilOptions);
-        if (systemFirmwareVersion) {
-            ffCfStrGetString(systemFirmwareVersion, &bios->version);
+        FF_CFTYPE_AUTO_RELEASE CFStringRef tag = IORegistryEntryCreateCFProperty(deviceChosen, CFSTR("iboot-stage-one-tag"), kCFAllocatorDefault, kNilOptions)
+            ?: IORegistryEntryCreateCFProperty(deviceChosen, CFSTR("system-firmware-version"), kCFAllocatorDefault, kNilOptions);
+        if (tag) {
+            ffCfStrGetString(tag, &bios->version);
             uint32_t index = ffStrbufFirstIndexC(&bios->version, '-');
             if (index != bios->version.length) {
                 ffStrbufAppendNS(&bios->type, index, bios->version.chars);
@@ -53,5 +54,5 @@ const char* ffDetectBios(FFBiosResult* bios) {
     }
 #endif
 
-    return NULL;
+    return nullptr;
 }

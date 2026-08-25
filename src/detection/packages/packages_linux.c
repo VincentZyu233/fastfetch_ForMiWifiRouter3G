@@ -3,7 +3,7 @@
 #include "common/parsing.h"
 #include "common/properties.h"
 #include "common/settings.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "detection/os/os.h"
 
 static uint32_t getNumElements(FFstrbuf* baseDir, const char* dirname, bool isdir) {
@@ -23,7 +23,7 @@ static uint32_t getNumStringsImpl(const char* filename, const char* needle) {
     uint32_t count = 0;
     char* iter = content.chars;
     size_t needleLength = strlen(needle);
-    while ((iter = memmem(iter, content.length - (size_t) (iter - content.chars), needle, needleLength)) != NULL) {
+    while ((iter = memmem(iter, content.length - (size_t) (iter - content.chars), needle, needleLength)) != nullptr) {
         ++count;
         iter += needleLength;
     }
@@ -84,8 +84,8 @@ static uint32_t countFilesRecursiveImpl(FFstrbuf* baseDirPath, const char* filen
         return 1;
     }
 
-    DIR* dirp = opendir(baseDirPath->chars);
-    if (dirp == NULL) {
+    FF_AUTO_CLOSE_DIR DIR* dirp = opendir(baseDirPath->chars);
+    if (dirp == nullptr) {
         return 0;
     }
 
@@ -95,7 +95,7 @@ static uint32_t countFilesRecursiveImpl(FFstrbuf* baseDirPath, const char* filen
     uint32_t sum = 0;
 
     struct dirent* entry;
-    while ((entry = readdir(dirp)) != NULL) {
+    while ((entry = readdir(dirp)) != nullptr) {
         // According to the PMS, neither category nor package name can begin with '.', so no need to check for . or .. specifically
         if (entry->d_type != DT_DIR || entry->d_name[0] == '.') {
             continue;
@@ -106,7 +106,6 @@ static uint32_t countFilesRecursiveImpl(FFstrbuf* baseDirPath, const char* filen
         ffStrbufSubstrBefore(baseDirPath, baseDirPathLength);
     }
 
-    closedir(dirp);
     return sum;
 }
 
@@ -118,16 +117,35 @@ static uint32_t countFilesRecursive(FFstrbuf* baseDir, const char* dirname, cons
     return sum;
 }
 
+static uint32_t getNumElementsBySuffix(FFstrbuf* baseDir, const char* dirname, const char* suffix) {
+    uint32_t baseDirLength = baseDir->length;
+    ffStrbufAppendS(baseDir, dirname);
+    FF_AUTO_CLOSE_DIR DIR* dirp = opendir(baseDir->chars);
+    ffStrbufSubstrBefore(baseDir, baseDirLength);
+    if (dirp == nullptr) {
+        return 0;
+    }
+
+    uint32_t count = 0;
+    struct dirent* entry;
+    while ((entry = readdir(dirp)) != nullptr) {
+        if (entry->d_name[0] != '.' && ffStrEndsWithIgnCase(entry->d_name, suffix)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 static uint32_t getXBPSImpl(FFstrbuf* baseDir) {
-    DIR* dir = opendir(baseDir->chars);
-    if (dir == NULL) {
+    FF_AUTO_CLOSE_DIR DIR* dir = opendir(baseDir->chars);
+    if (dir == nullptr) {
         return 0;
     }
 
     uint32_t result = 0;
 
     struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
+    while ((entry = readdir(dir)) != nullptr) {
         if (entry->d_type != DT_REG || !ffStrStartsWithIgnCase(entry->d_name, "pkgdb-")) {
             continue;
         }
@@ -138,7 +156,6 @@ static uint32_t getXBPSImpl(FFstrbuf* baseDir) {
         break;
     }
 
-    closedir(dir);
     return result;
 }
 
@@ -162,11 +179,11 @@ static uint32_t getSnap(FFstrbuf* baseDir) {
 }
 
 #ifdef FF_HAVE_RPM
-#    include "common/library.h"
-#    include <rpm/rpmlib.h>
-#    include <rpm/rpmts.h>
-#    include <rpm/rpmdb.h>
-#    include <rpm/rpmlog.h>
+    #include "common/library.h"
+    #include <rpm/rpmlib.h>
+    #include <rpm/rpmts.h>
+    #include <rpm/rpmdb.h>
+    #include <rpm/rpmlog.h>
 
 static uint32_t getRpmFromLibrpm(void) {
     FF_LIBRARY_LOAD(rpm, 0, "librpm" FF_LIBRARY_EXTENSION, 12)
@@ -181,17 +198,17 @@ static uint32_t getRpmFromLibrpm(void) {
     // Don't print any error messages
     ffrpmlogSetMask(RPMLOG_MASK(RPMLOG_EMERG));
 
-    if (ffrpmReadConfigFiles(NULL, NULL) != 0) {
+    if (ffrpmReadConfigFiles(nullptr, nullptr) != 0) {
         return 0;
     }
 
     rpmts ts = ffrpmtsCreate();
-    if (ts == NULL) {
+    if (ts == nullptr) {
         return 0;
     }
 
-    rpmdbMatchIterator mi = ffrpmtsInitIterator(ts, RPMDBI_LABEL, NULL, 0);
-    if (mi == NULL) {
+    rpmdbMatchIterator mi = ffrpmtsInitIterator(ts, RPMDBI_LABEL, nullptr, 0);
+    if (mi == nullptr) {
         ffrpmtsFree(ts);
         return 0;
     }
@@ -215,7 +232,7 @@ static uint32_t getAMPackages(FFstrbuf* baseDir) {
 
     uint32_t result = 0;
     struct dirent* entry;
-    while ((entry = readdir(dirp)) != NULL) {
+    while ((entry = readdir(dirp)) != nullptr) {
         if (entry->d_name[0] == '.') {
             continue;
         }
@@ -313,14 +330,14 @@ static uint32_t getGuixPackages(FFstrbuf* baseDir, const char* dirname) {
 
 static inline uint32_t getFlatpakRuntimePackagesArch(FFstrbuf* baseDir) {
     FF_AUTO_CLOSE_DIR DIR* dirp = opendir(baseDir->chars);
-    if (dirp == NULL) {
+    if (dirp == nullptr) {
         return 0;
     }
 
     uint32_t num_elements = 0;
 
     struct dirent* entry;
-    while ((entry = readdir(dirp)) != NULL) {
+    while ((entry = readdir(dirp)) != nullptr) {
         if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
             num_elements += getNumElements(baseDir, entry->d_name, true);
         }
@@ -332,7 +349,7 @@ static inline uint32_t getFlatpakRuntimePackagesArch(FFstrbuf* baseDir) {
 static inline uint32_t getFlatpakRuntimePackages(FFstrbuf* baseDir) {
     ffStrbufAppendS(baseDir, "runtime/");
     FF_AUTO_CLOSE_DIR DIR* dirp = opendir(baseDir->chars);
-    if (dirp == NULL) {
+    if (dirp == nullptr) {
         return 0;
     }
 
@@ -340,7 +357,7 @@ static inline uint32_t getFlatpakRuntimePackages(FFstrbuf* baseDir) {
     uint32_t num_elements = 0;
 
     struct dirent* entry;
-    while ((entry = readdir(dirp)) != NULL) {
+    while ((entry = readdir(dirp)) != nullptr) {
         if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
             // `flatpak list` ignores `.Locale` and `.Debug` packages, and maybe others
             const char* dot = strrchr(entry->d_name, '.');
@@ -366,7 +383,7 @@ static inline uint32_t getFlatpakRuntimePackages(FFstrbuf* baseDir) {
 static inline uint32_t getFlatpakAppPackages(FFstrbuf* baseDir) {
     ffStrbufAppendS(baseDir, "app/");
     FF_AUTO_CLOSE_DIR DIR* dirp = opendir(baseDir->chars);
-    if (dirp == NULL) {
+    if (dirp == nullptr) {
         return 0;
     }
 
@@ -374,7 +391,7 @@ static inline uint32_t getFlatpakAppPackages(FFstrbuf* baseDir) {
     uint32_t num_elements = 0;
 
     struct dirent* entry;
-    while ((entry = readdir(dirp)) != NULL) {
+    while ((entry = readdir(dirp)) != nullptr) {
         if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
             ffStrbufAppendS(baseDir, entry->d_name);
             ffStrbufAppendS(baseDir, "/current");
@@ -439,91 +456,124 @@ static uint32_t getPacmanPackages(FFstrbuf* baseDir) {
     return getNumElements(baseDir, dbPath.chars, true);
 }
 
+static uint32_t getEmergePackagesImpl(FFstrbuf* baseDir) {
+    FF_AUTO_CLOSE_DIR DIR* dirp = opendir(baseDir->chars);
+    if (dirp == nullptr)
+        return 0;
+
+    uint32_t result = 0;
+
+    struct dirent *entry;
+    while ((entry = readdir(dirp)) != nullptr)
+    {
+        if (entry->d_type != DT_DIR || entry->d_name[0] == '.')
+            continue;
+
+        result += getNumElements(baseDir, entry->d_name, true);
+    }
+    return result;
+}
+
+static uint32_t getEmergePackages(FFstrbuf* baseDir, const char* dirname) {
+    uint32_t baseDirLength = baseDir->length;
+    ffStrbufAppendS(baseDir, dirname);
+    ffStrbufAppendC(baseDir, '/');
+    uint32_t result = getEmergePackagesImpl(baseDir);
+    ffStrbufSubstrBefore(baseDir, baseDirLength);
+    return result;
+}
+
 static void getPackageCounts(FFstrbuf* baseDir, FFPackagesResult* packageCounts, FFPackagesOptions* options) {
-    if (!(options->disabled & FF_PACKAGES_FLAG_APK_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, APK)) {
         packageCounts->apk += getNumStrings(baseDir, "/lib/apk/db/installed", "C:Q", "apk");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_DPKG_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, DPKG)) {
         packageCounts->dpkg += getNumStrings(baseDir, "/var/lib/dpkg/status", "Status: install ok installed", "dpkg");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_LPKG_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, LPKG)) {
         packageCounts->lpkg += getNumStrings(baseDir, "/opt/Loc-OS-LPKG/installed-lpkg/Listinstalled-lpkg.list", "\n", "lpkg");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_EMERGE_BIT)) {
-        packageCounts->emerge += countFilesRecursive(baseDir, "/var/db/pkg", "SIZE");
+    if (FF_PACKAGES_IS_ENABLED(options, EMERGE)) {
+        packageCounts->emerge += getEmergePackages(baseDir, "/var/db/pkg");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_EOPKG_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, EOPKG)) {
         packageCounts->eopkg += getNumElements(baseDir, "/var/lib/eopkg/package", true);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_FLATPAK_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, FLATPAK)) {
         packageCounts->flatpakSystem += getFlatpakPackages(baseDir, "/var/lib");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_KISS_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, KISS)) {
         packageCounts->kiss += getNumElements(baseDir, "/var/db/kiss/installed", true);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_NIX_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, NIX)) {
         packageCounts->nixDefault += ffPackagesGetNix(baseDir, "/nix/var/nix/profiles/default");
         packageCounts->nixSystem += ffPackagesGetNix(baseDir, "/run/current-system");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PACMAN_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PACMAN)) {
         packageCounts->pacman += getPacmanPackages(baseDir);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_LPKGBUILD_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, LPKGBUILD)) {
         packageCounts->lpkgbuild += getNumElements(baseDir, "/opt/Loc-OS-LPKG/lpkgbuild/remove", false);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PKGTOOL_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PKGTOOL)) {
         packageCounts->pkgtool += getNumElements(baseDir, "/var/log/packages", false);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_RPM_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PORG)) {
+        packageCounts->porg += getNumElements(baseDir, "/var/log/porg", false);
+    }
+    if (FF_PACKAGES_IS_ENABLED(options, RPM)) {
         // `Sigmd5` is the only table that doesn't contain the virtual `gpg-pubkey` package
         packageCounts->rpm += getSQLite3Int(baseDir, "/var/lib/rpm/rpmdb.sqlite", "SELECT count(*) FROM Sigmd5", "rpm");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_SNAP_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, SNAP)) {
         packageCounts->snap += getSnap(baseDir);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_XBPS_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, XBPS)) {
         packageCounts->xbps += getXBPS(baseDir, "/var/db/xbps");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_BREW_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, BREW)) {
         packageCounts->brewCask += getNumElements(baseDir, "/home/linuxbrew/.linuxbrew/Caskroom", true);
         packageCounts->brew += getNumElements(baseDir, "/home/linuxbrew/.linuxbrew/Cellar", true);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PALUDIS_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PALUDIS)) {
         packageCounts->paludis += countFilesRecursive(baseDir, "/var/db/paludis/repositories", "environment.bz2");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_OPKG_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, OPKG)) {
         packageCounts->opkg += getNumStrings(baseDir, "/usr/lib/opkg/status", "Package:", "opkg"); // openwrt
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_AM_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, AM)) {
         packageCounts->amSystem = getAMSystem(baseDir);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_SORCERY_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, SORCERY)) {
         packageCounts->sorcery += getNumStrings(baseDir, "/var/state/sorcery/packages", ":installed:", "sorcery");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_GUIX_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, GUIX)) {
         packageCounts->guixSystem += getGuixPackages(baseDir, "/run/current-system/profile");
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_LINGLONG_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, LINGLONG)) {
         packageCounts->linglong += getNumElements(baseDir, "/var/lib/linglong/layers", true);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PACSTALL_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PACSTALL)) {
         packageCounts->pacstall += getNumElements(baseDir, "/var/lib/pacstall/metadata", false);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PISI_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PISI)) {
         packageCounts->pisi += getNumElements(baseDir, "/var/lib/pisi/package", true);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_PKGSRC_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PKGSRC)) {
         packageCounts->pkgsrc += getNumElements(baseDir, "/usr/pkg/pkgdb", DT_DIR);
     }
-    if (!(options->disabled & FF_PACKAGES_FLAG_MOSS_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, MOSS)) {
         packageCounts->moss += getSQLite3Int(baseDir, "/.moss/db/state", "SELECT COUNT(*) FROM state_selections WHERE state_id = (SELECT MAX(id) FROM state)", "moss");
+    }
+    if (FF_PACKAGES_IS_ENABLED(options, CARDS)) {
+        packageCounts->cards += getNumElements(baseDir, "/var/lib/pkg/DB", true);
     }
 }
 
 static void getPackageCountsRegular(FFstrbuf* baseDir, FFPackagesResult* packageCounts, FFPackagesOptions* options) {
     getPackageCounts(baseDir, packageCounts, options);
 
-    if (!(options->disabled & FF_PACKAGES_FLAG_PACMAN_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, PACMAN)) {
         uint32_t baseDirLength = baseDir->length;
         ffStrbufAppendS(baseDir, FASTFETCH_TARGET_DIR_ETC "/pacman-mirrors.conf");
         if (ffParsePropFile(baseDir->chars, "Branch =", &packageCounts->pacmanBranch) && packageCounts->pacmanBranch.length == 0) {
@@ -539,7 +589,7 @@ static void getPackageCountsBedrock(FFstrbuf* baseDir, FFPackagesResult* package
     ffStrbufAppendS(baseDir, "/bedrock/strata");
 
     FF_AUTO_CLOSE_DIR DIR* dir = opendir(baseDir->chars);
-    if (dir == NULL) {
+    if (dir == nullptr) {
         ffStrbufSubstrBefore(baseDir, baseDirLength);
         return;
     }
@@ -548,7 +598,7 @@ static void getPackageCountsBedrock(FFstrbuf* baseDir, FFPackagesResult* package
     uint32_t baseDirLength2 = baseDir->length;
 
     struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
+    while ((entry = readdir(dir)) != nullptr) {
         if (entry->d_type != DT_DIR) {
             continue;
         }
@@ -562,6 +612,25 @@ static void getPackageCountsBedrock(FFstrbuf* baseDir, FFPackagesResult* package
     }
 
     ffStrbufSubstrBefore(baseDir, baseDirLength);
+}
+
+static uint32_t getInstallReleasePackages(FFstrbuf* baseDir) {
+    uint32_t result = 0;
+
+    uint32_t baseDirLength = baseDir->length;
+    ffStrbufAppendS(baseDir, ".config/install_release/state.json");
+    if (ffPathExists(baseDir->chars, FF_PATHTYPE_ANY)) {
+        yyjson_doc* doc = yyjson_read_file(baseDir->chars, YYJSON_READ_NOFLAG, nullptr, nullptr);
+        if (doc != nullptr) {
+            yyjson_val* root = yyjson_doc_get_root(doc);
+            if (yyjson_is_obj(root)) {
+                result = (uint32_t) yyjson_obj_size(root);
+            }
+            yyjson_doc_free(doc);
+        }
+    }
+    ffStrbufSubstrBefore(baseDir, baseDirLength);
+    return result;
 }
 
 void ffDetectPackagesImpl(FFPackagesResult* result, FFPackagesOptions* options) {
@@ -578,13 +647,13 @@ void ffDetectPackagesImpl(FFPackagesResult* result, FFPackagesOptions* options) 
 // This is needed on openSUSE, which seems to use a proprietary database file
 // This method doesn't work on bedrock, so we do it here.
 #ifdef FF_HAVE_RPM
-    if (!(options->disabled & FF_PACKAGES_FLAG_RPM_BIT) && result->rpm == 0) {
+    if (FF_PACKAGES_IS_ENABLED(options, RPM) && result->rpm == 0) {
         result->rpm = getRpmFromLibrpm();
     }
 #endif
 
     ffStrbufSet(&baseDir, &instance.state.platform.homeDir);
-    if (!(options->disabled & FF_PACKAGES_FLAG_NIX_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, NIX)) {
         // Count packages from $HOME/.nix-profile
         result->nixUser += ffPackagesGetNix(&baseDir, ".nix-profile");
 
@@ -605,20 +674,29 @@ void ffDetectPackagesImpl(FFPackagesResult* result, FFPackagesOptions* options) 
         result->nixUser += ffPackagesGetNix(&userPkgsDir, instance.state.platform.userName.chars);
     }
 
-    if (!(options->disabled & FF_PACKAGES_FLAG_GUIX_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, GUIX)) {
         result->guixUser += getGuixPackages(&baseDir, ".guix-profile");
         result->guixHome += getGuixPackages(&baseDir, ".guix-home/profile");
     }
 
-    if (!(options->disabled & FF_PACKAGES_FLAG_FLATPAK_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, FLATPAK)) {
         result->flatpakUser = getFlatpakPackages(&baseDir, "/.local/share");
     }
 
-    if (!(options->disabled & FF_PACKAGES_FLAG_AM_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, AM)) {
         result->amUser = getAMUser();
     }
 
-    if (!(options->disabled & FF_PACKAGES_FLAG_SOAR_BIT)) {
+    if (FF_PACKAGES_IS_ENABLED(options, SOAR)) {
         result->soar += getSQLite3Int(&baseDir, ".local/share/soar/db/soar.db", "SELECT COUNT(DISTINCT pkg_id || pkg_name) FROM packages WHERE is_installed = true", "soar");
+    }
+
+    if (FF_PACKAGES_IS_ENABLED(options, APPIMAGE)) {
+        result->appimage += getNumElementsBySuffix(&baseDir, "/AppImages", ".appimage");
+        result->appimage += getNumElementsBySuffix(&baseDir, "/Applications", ".appimage");
+    }
+
+    if (FF_PACKAGES_IS_ENABLED(options, INSTALLRELEASE)) {
+        result->installrelease = getInstallReleasePackages(&baseDir);
     }
 }

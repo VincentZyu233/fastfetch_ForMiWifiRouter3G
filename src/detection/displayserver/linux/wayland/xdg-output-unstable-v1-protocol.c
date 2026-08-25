@@ -24,18 +24,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#    include <stdlib.h>
-#    include <stdint.h>
-#    include <wayland-util.h>
+    #include <stdlib.h>
+    #include <stdint.h>
+    #include <wayland-util.h>
 
 extern const struct wl_interface wl_output_interface;
 extern const struct wl_interface zxdg_output_v1_interface;
 
 static const struct wl_interface* xdg_output_unstable_v1_types[] = {
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     &zxdg_output_v1_interface,
-    NULL, // &wl_output_interface,
+    &wl_output_interface,
 };
 
 static const struct wl_message zxdg_output_manager_v1_requests[] = {
@@ -49,7 +49,7 @@ WL_EXPORT const struct wl_interface zxdg_output_manager_v1_interface = {
     2,
     zxdg_output_manager_v1_requests,
     0,
-    NULL,
+    nullptr,
 };
 
 static const struct wl_message zxdg_output_v1_requests[] = {

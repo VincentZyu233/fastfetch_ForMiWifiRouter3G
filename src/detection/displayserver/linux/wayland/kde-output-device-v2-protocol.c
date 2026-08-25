@@ -12,23 +12,23 @@
  * SPDX-License-Identifier: MIT-CMU
  */
 
-#    include <stdbool.h>
-#    include <stdlib.h>
-#    include <stdint.h>
-#    include <wayland-util.h>
+    #include <stdbool.h>
+    #include <stdlib.h>
+    #include <stdint.h>
+    #include <wayland-util.h>
 
 extern const struct wl_interface kde_output_device_mode_v2_interface;
 extern const struct wl_interface kde_output_device_v2_interface;
 
 static const struct wl_interface* kde_output_device_v2_types[] = {
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     &kde_output_device_v2_interface,
     &kde_output_device_mode_v2_interface,
     &kde_output_device_mode_v2_interface,
@@ -45,7 +45,7 @@ static const struct wl_message kde_output_device_registry_v2_events[] = {
 
 WL_EXPORT const struct wl_interface kde_output_device_registry_v2_interface = {
     "kde_output_device_registry_v2",
-    21,
+    23,
     1,
     kde_output_device_registry_v2_requests,
     2,
@@ -94,14 +94,17 @@ static const struct wl_message kde_output_device_v2_events[] = {
     { "priority", "18u", kde_output_device_v2_types + 0 },
     { "auto_brightness", "20u", kde_output_device_v2_types + 0 },
     { "removed", "21", kde_output_device_v2_types + 0 },
+    { "hdr_icc_profile_path", "22s", kde_output_device_v2_types + 0 },
+    { "hdr_color_profile_source", "22u", kde_output_device_v2_types + 0 },
+    { "abm_level", "23u", kde_output_device_v2_types + 0 },
 };
 
 WL_EXPORT const struct wl_interface kde_output_device_v2_interface = {
     "kde_output_device_v2",
-    21,
+    23,
     1,
     kde_output_device_v2_requests,
-    37,
+    40,
     kde_output_device_v2_events,
 };
 
@@ -115,9 +118,9 @@ static const struct wl_message kde_output_device_mode_v2_events[] = {
 
 WL_EXPORT const struct wl_interface kde_output_device_mode_v2_interface = {
     "kde_output_device_mode_v2",
-    21,
+    22,
     0,
-    NULL,
+    nullptr,
     5,
     kde_output_device_mode_v2_events,
 };

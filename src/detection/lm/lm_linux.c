@@ -10,9 +10,9 @@
 #define FF_SYSTEMD_USERS_PATH "/run/systemd/users/"
 
 static const char* getGdmVersion(FFstrbuf* version) {
-    const char* error = ffProcessAppendStdOut(version, (char* const[]) { "gdm", "--version", NULL });
+    const char* error = ffProcessAppendStdOut(version, (char* const[]) { "gdm", "--version", nullptr });
     if (error || version->length == 0) {
-        error = ffProcessAppendStdOut(version, (char* const[]) { "gdm3", "--version", NULL });
+        error = ffProcessAppendStdOut(version, (char* const[]) { "gdm3", "--version", nullptr });
         if (error || version->length == 0) {
             return "Failed to get GDM version";
         }
@@ -20,11 +20,11 @@ static const char* getGdmVersion(FFstrbuf* version) {
 
     // GDM 44.1
     ffStrbufSubstrAfterFirstC(version, ' ');
-    return NULL;
+    return nullptr;
 }
 
 static const char* getSshdVersion(FFstrbuf* version) {
-    const char* error = ffProcessAppendStdErr(version, (char* const[]) { "sshd", "-V", NULL });
+    const char* error = ffProcessAppendStdErr(version, (char* const[]) { "sshd", "-V", nullptr });
     if (error) {
         return error;
     }
@@ -32,13 +32,13 @@ static const char* getSshdVersion(FFstrbuf* version) {
     // OpenSSH_9.0p1, OpenSSL 3.0.9 30 May 2023...
     ffStrbufSubstrBeforeFirstC(version, ',');
     ffStrbufSubstrAfterFirstC(version, '_');
-    return NULL;
+    return nullptr;
 }
 
 #ifdef FF_HAVE_ZLIB
-#    include "common/library.h"
-#    include <stdlib.h>
-#    include <zlib.h>
+    #include "common/library.h"
+    #include <stdlib.h>
+    #include <zlib.h>
 
 static const char* getSddmVersion(FFstrbuf* version) {
     FF_LIBRARY_LOAD_MESSAGE(zlib, "libz" FF_LIBRARY_EXTENSION, 2)
@@ -78,16 +78,16 @@ static const char* getSddmVersion(FFstrbuf* version) {
     ffStrbufTrimRight(version, '"');
     ffStrbufSubstrAfterLastC(version, ' ');
 
-    return NULL;
+    return nullptr;
 }
 #else
-static const char* getSddmVersion(FF_A_UNUSED FFstrbuf* version) {
+static const char* getSddmVersion([[maybe_unused]] FFstrbuf* version) {
     return "Fastfetch is built without libz support";
 }
 #endif
 
 static const char* getXfwmVersion(FFstrbuf* version) {
-    const char* error = ffProcessAppendStdOut(version, (char* const[]) { "xfwm4", "--version", NULL });
+    const char* error = ffProcessAppendStdOut(version, (char* const[]) { "xfwm4", "--version", nullptr });
     if (error) {
         return error;
     }
@@ -96,11 +96,11 @@ static const char* getXfwmVersion(FFstrbuf* version) {
     ffStrbufSubstrAfterFirstS(version, "version ");
     ffStrbufSubstrBeforeFirstC(version, ' ');
 
-    return NULL;
+    return nullptr;
 }
 
 static const char* getLightdmVersion(FFstrbuf* version) {
-    const char* error = ffProcessAppendStdErr(version, (char* const[]) { "lightdm", "--version", NULL });
+    const char* error = ffProcessAppendStdErr(version, (char* const[]) { "lightdm", "--version", nullptr });
     if (error) {
         return error;
     }
@@ -109,7 +109,7 @@ static const char* getLightdmVersion(FFstrbuf* version) {
     ffStrbufSubstrAfterFirstC(version, ' ');
     ffStrbufTrimRight(version, '\n');
 
-    return NULL;
+    return nullptr;
 }
 
 const char* ffDetectLM(FFLMResult* result) {
@@ -164,5 +164,5 @@ const char* ffDetectLM(FFLMResult* result) {
         ffStrbufSetS(&result->type, FF_WM_PROTOCOL_TTY);
     }
 
-    return NULL;
+    return nullptr;
 }

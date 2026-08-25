@@ -1,7 +1,7 @@
 #include "FFPlatform_private.h"
 #include "common/FFstrbuf.h"
-#include "common/arrayUtils.h"
-#include "common/stringUtils.h"
+#include "common/arrutil.h"
+#include "common/strutil.h"
 #include "common/io.h"
 #include "fastfetch_config.h"
 
@@ -12,24 +12,25 @@
 #include <paths.h>
 
 #ifdef __APPLE__
-#    include <mach-o/dyld.h>
-#    include <sys/sysctl.h>
+    #include <mach-o/dyld.h>
+    #include <sys/sysctl.h>
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
-#    include <sys/sysctl.h>
+    #include <sys/sysctl.h>
 #elif defined(__OpenBSD__)
-#    include <sys/sysctl.h>
-#    include <kvm.h>
-#    include "common/path.h"
+    #include <sys/sysctl.h>
+    #include <sys/stat.h>
+    #include <kvm.h>
+    #include "common/path.h"
 #elif defined(__HAIKU__)
-#    include <image.h>
-#    include <OS.h>
+    #include <image.h>
+    #include <OS.h>
 #endif
 
 static void getExePath(FFPlatform* platform) {
     char exePath[PATH_MAX];
 #if defined(__linux__) || defined(__GNU__)
     ssize_t exePathLen = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
-    if (exePathLen >= 0) {
+    if (exePathLen > 0) {
         exePath[exePathLen] = '\0';
     }
 #elif defined(__APPLE__)
@@ -43,20 +44,20 @@ static void getExePath(FFPlatform* platform) {
     size_t exePathLen = sizeof(exePath);
     if (sysctl(
             (int[]) { CTL_KERN,
-#    ifdef __FreeBSD__
+    #ifdef __FreeBSD__
                 KERN_PROC,
                 KERN_PROC_PATHNAME,
                 (pid_t) platform->pid
-#    else
+    #else
                 KERN_PROC_ARGS,
                 (pid_t) platform->pid,
                 KERN_PROC_PATHNAME
-#    endif
+    #endif
             },
             4,
             exePath,
             &exePathLen,
-            NULL,
+            nullptr,
             0) < 0)
         exePathLen = 0;
     else {
@@ -67,7 +68,7 @@ static void getExePath(FFPlatform* platform) {
     // Current implementation uses argv[0], which can be easily spoofed.
     // See #2195
     size_t exePathLen = 0;
-    kvm_t* kd = kvm_openfiles(NULL, NULL, NULL, KVM_NO_FILES, NULL);
+    kvm_t* kd = kvm_openfiles(nullptr, nullptr, nullptr, KVM_NO_FILES, nullptr);
     if (kd) {
         int kpCount;
         struct kinfo_proc* kp = kvm_getprocs(kd, KERN_PROC_PID, (pid_t) platform->pid, sizeof(*kp), &kpCount);
@@ -76,7 +77,7 @@ static void getExePath(FFPlatform* platform) {
             if (argv && argv[0]) {
                 char* arg0 = argv[0];
                 if (arg0[0]) {
-                    if (strchr(arg0, '/') != NULL) // likely a path (absolute or relative)
+                    if (strchr(arg0, '/') != nullptr) // likely a path (absolute or relative)
                     {
                         exePathLen = strlen(arg0);
                         if (exePathLen < ARRAY_SIZE(exePath)) {
@@ -87,7 +88,7 @@ static void getExePath(FFPlatform* platform) {
                         }
                     } else {
                         FF_STRBUF_AUTO_DESTROY tmpPath = ffStrbufCreate();
-                        if (ffFindExecutableInPath(arg0, &tmpPath) == NULL && tmpPath.length < ARRAY_SIZE(exePath)) {
+                        if (ffFindExecutableInPath(arg0, &tmpPath) == nullptr && tmpPath.length < ARRAY_SIZE(exePath)) {
                             memcpy(exePath, tmpPath.chars, tmpPath.length + 1);
                             exePathLen = tmpPath.length;
                         }
@@ -97,7 +98,7 @@ static void getExePath(FFPlatform* platform) {
                         struct stat st;
                         if (stat(exePath, &st) == 0 && S_ISREG(st.st_mode)) {
                             int cntp;
-                            struct kinfo_file* kf = kvm_getfiles(kd, KERN_FILE_BYPID, platform->pid, sizeof(*kf), &cntp);
+                            struct kinfo_file* kf = kvm_getfiles(kd, KERN_FILE_BYPID, (pid_t) platform->pid, sizeof(*kf), &cntp);
                             if (kf) {
                                 int i;
                                 for (i = 0; i < cntp; i++) {
@@ -127,7 +128,7 @@ static void getExePath(FFPlatform* platform) {
     }
 #elif defined(__sun)
     ssize_t exePathLen = readlink("/proc/self/path/a.out", exePath, sizeof(exePath) - 1);
-    if (exePathLen >= 0) {
+    if (exePathLen > 0) {
         exePath[exePathLen] = '\0';
     }
 #elif defined(__HAIKU__)
@@ -281,7 +282,7 @@ static void getSysinfo(FFPlatformSysinfo* info, const struct utsname* uts) {
 
 #if defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__)
     size_t length = sizeof(info->pageSize);
-    sysctl((int[]) { CTL_HW, HW_PAGESIZE }, 2, &info->pageSize, &length, NULL, 0);
+    sysctl((int[]) { CTL_HW, HW_PAGESIZE }, 2, &info->pageSize, &length, nullptr, 0);
 #else
     info->pageSize = (uint32_t) sysconf(_SC_PAGESIZE);
 #endif
@@ -289,7 +290,7 @@ static void getSysinfo(FFPlatformSysinfo* info, const struct utsname* uts) {
 
 static void getCwd(FFPlatform* platform) {
     char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
         ffStrbufSetS(&platform->cwd, cwd);
         ffStrbufEnsureEndsWithC(&platform->cwd, '/');
     }

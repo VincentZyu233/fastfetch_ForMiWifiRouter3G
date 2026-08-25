@@ -63,10 +63,10 @@ const FFSmbiosHeader* ffSmbiosNextEntry(const FFSmbiosHeader* header) {
 }
 
 static bool parseSmbiosTable(const uint8_t* data, uint32_t length) {
-    const FFSmbiosHeader* endOfTable = NULL;
+    const FFSmbiosHeader* endOfTable = nullptr;
 
     FF_DEBUG("Parsing SMBIOS table structures with length %u bytes", length);
-    FF_A_UNUSED int structureCount = 0, totalCount = 0;
+    [[maybe_unused]] int structureCount = 0, totalCount = 0;
     for (
         const FFSmbiosHeader* header = (const FFSmbiosHeader*) data;
         (const uint8_t*) header + sizeof(FFSmbiosHeader) < (const uint8_t*) data + length;
@@ -141,21 +141,21 @@ static bool parseSmbiosTable(const uint8_t* data, uint32_t length) {
 }
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__sun) || defined(__HAIKU__) || defined(__OpenBSD__) || defined(__GNU__)
-#    include <fcntl.h>
-#    include <sys/stat.h>
-#    include <sys/types.h>
-#    include <sys/mman.h>
-#    include <stddef.h>
+    #include <fcntl.h>
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    #include <sys/mman.h>
+    #include <stddef.h>
 
-#    ifdef __linux__
-#        include "common/properties.h"
-#    elif defined(__FreeBSD__)
-#        include "common/settings.h"
-#    elif defined(__NetBSD__)
-#        include "common/sysctl.h"
-#    endif
+    #ifdef __linux__
+        #include "common/properties.h"
+    #elif defined(__FreeBSD__)
+        #include "common/settings.h"
+    #elif defined(__NetBSD__)
+        #include "common/sysctl.h"
+    #endif
 
-#    ifdef __linux__
+    #ifdef __linux__
 bool ffGetSmbiosValue(const char* devicesPath, const char* classPath, FFstrbuf* buffer) {
     // /sys/class/dmi/id/* are all pseudo-files with very small content
     // so reading the whole file at once is efficient
@@ -186,10 +186,10 @@ bool ffGetSmbiosValue(const char* devicesPath, const char* classPath, FFstrbuf* 
     ffStrbufClear(buffer);
     return false;
 }
-#    endif
+    #endif
 
 static bool readPhysicalMemory(int fd, off_t address, size_t length, void* buffer) {
-#    if !defined(__FreeBSD__) // Either causes kernel panic or returns EFAULT
+    #if !defined(__FreeBSD__) // Either causes kernel panic or returns EFAULT
     // -1: unknown, 0: failed before (stop trying), 1: succeeded before
     static int preadState = -1;
     if (preadState != 0) {
@@ -208,13 +208,13 @@ static bool readPhysicalMemory(int fd, off_t address, size_t length, void* buffe
     } else {
         FF_DEBUG("Skipping pread due to cached failure; using mmap");
     }
-#    endif
+    #endif
 
     off_t alignedAddress = address & ~((off_t) instance.state.platform.sysinfo.pageSize - 1);
     size_t pageOffset = (size_t) (address - alignedAddress);
     size_t mapLength = pageOffset + length;
 
-    void* p = mmap(NULL, mapLength, PROT_READ, MAP_SHARED, fd, alignedAddress);
+    void* p = mmap(nullptr, mapLength, PROT_READ, MAP_SHARED, fd, alignedAddress);
     if (p == MAP_FAILED) {
         FF_DEBUG("mmap failed at aligned address 0x%lx for %zu bytes: %s",
             (unsigned long) alignedAddress,
@@ -228,7 +228,7 @@ static bool readPhysicalMemory(int fd, off_t address, size_t length, void* buffe
     return true;
 }
 
-typedef struct FFSmbios20EntryPoint {
+typedef struct [[gnu::packed]] FFSmbios20EntryPoint {
     uint8_t AnchorString[4];
     uint8_t EntryPointStructureChecksum;
     uint8_t EntryPointLength;
@@ -243,11 +243,11 @@ typedef struct FFSmbios20EntryPoint {
     uint32_t StructureTableAddress;
     uint16_t NumberOfSmbiosStructures;
     uint8_t SmbiosBcdRevision;
-} FF_A_PACKED FFSmbios20EntryPoint;
+} FFSmbios20EntryPoint;
 static_assert(offsetof(FFSmbios20EntryPoint, SmbiosBcdRevision) == 0x1E,
     "FFSmbios20EntryPoint: Wrong struct alignment");
 
-typedef struct FFSmbios30EntryPoint {
+typedef struct [[gnu::packed]] FFSmbios30EntryPoint {
     uint8_t AnchorString[5];
     uint8_t EntryPointStructureChecksum;
     uint8_t EntryPointLength;
@@ -258,7 +258,7 @@ typedef struct FFSmbios30EntryPoint {
     uint8_t Reversed;
     uint32_t StructureTableMaximumSize;
     uint64_t StructureTableAddress;
-} FF_A_PACKED FFSmbios30EntryPoint;
+} FFSmbios30EntryPoint;
 
 static_assert(offsetof(FFSmbios30EntryPoint, StructureTableAddress) == 0x10,
     "FFSmbios30EntryPoint: Wrong struct alignment");
@@ -268,160 +268,13 @@ typedef union FFSmbiosEntryPoint {
     FFSmbios30EntryPoint Smbios30;
 } FFSmbiosEntryPoint;
 
-#    ifdef __OpenBSD__
-static bool detectSmbiosTableLength(const uint8_t* data, uint32_t bufferLength, uint32_t* tableLength) {
-    const uint8_t* p = data;
-    const uint8_t* end = data + bufferLength;
-
-    while (p + sizeof(FFSmbiosHeader) <= end) {
-        const FFSmbiosHeader* header = (const FFSmbiosHeader*) p;
-        if (header->Length < sizeof(*header)) {
-            FF_DEBUG("Invalid SMBIOS structure length %u at offset 0x%lx",
-                header->Length,
-                (unsigned long) (p - data));
-            return false;
-        }
-
-        if (header->Handle >= 0xFF00) {
-            FF_DEBUG("Invalid SMBIOS structure handle 0x%04x at offset 0x%lx",
-                header->Handle,
-                (unsigned long) (p - data));
-            return false;
-        }
-
-        const uint8_t* formattedEnd = p + header->Length;
-        if (formattedEnd > end) {
-            FF_DEBUG("Truncated SMBIOS structure at offset 0x%lx: length %u is too small",
-                (unsigned long) (p - data),
-                header->Length);
-            return false;
-        }
-
-        const char* string = (const char*) formattedEnd;
-        const char* stringEnd = (const char*) end;
-        while (true) {
-            size_t remaining = (size_t) (stringEnd - string);
-            if (remaining == 0) {
-                return false;
-            }
-
-            const char* nul = memchr(string, '\0', remaining);
-            if (!nul) {
-                return false;
-            }
-
-            string = nul + 1;
-            if (string >= stringEnd) {
-                return false;
-            }
-
-            if (*string == '\0') {
-                ++string;
-                break;
-            }
-        }
-
-        if (header->Type == FF_SMBIOS_TYPE_END_OF_TABLE) {
-            *tableLength = (uint32_t) (string - (const char*) data);
-            return true;
-        }
-
-        p = (const uint8_t*) string;
-    }
-
-    return false;
-}
-
-static bool fillTableBufferOpenBSD(FFstrbuf* buffer) {
-    FF_DEBUG("Using OpenBSD /var/run/dmesg.boot implementation");
-
-    char dmesg[2048];
-    ssize_t size = ffReadFileData("/var/run/dmesg.boot", sizeof(dmesg) - 1, dmesg);
-    if (size <= 0) {
-        FF_DEBUG("Failed to read /var/run/dmesg.boot");
-        return false;
-    } else {
-        FF_DEBUG("Successfully read %zd bytes from /var/run/dmesg.boot", size);
-    }
-    dmesg[size] = '\0';
-
-    const char* const needle = "\nbios0 at mainbus0: SMBIOS rev. ";
-    size_t needleLen = strlen(needle);
-    char* line = memmem(dmesg, (size_t) size, needle, needleLen);
-    if (!line) {
-        FF_DEBUG("Failed to find SMBIOS line in /var/run/dmesg.boot");
-        return false;
-    }
-    line += needleLen;
-
-    char* lineEnd = memchr(line, '\n', (size_t) ((dmesg + size) - line));
-    if (!lineEnd) {
-        lineEnd = dmesg + size;
-    }
-
-    char* address = memchr(line, '@', (size_t) (lineEnd - line));
-    if (!address) {
-        FF_DEBUG("Failed to find SMBIOS table address in dmesg line");
-        return false;
-    }
-
-    do {
-        ++address;
-    } while (address < lineEnd && (*address == ' ' || *address == '\t'));
-
-    errno = 0;
-    char* addressEnd = NULL;
-    unsigned long long parsedAddress = strtoull(address, &addressEnd, 16);
-    if (errno != 0 || addressEnd == address || parsedAddress == 0) {
-        FF_DEBUG("Failed to parse OpenBSD SMBIOS table address from line: %.*s",
-            (int) (lineEnd - line),
-            line);
-        return false;
-    }
-
-    off_t tableAddress = (off_t) parsedAddress;
-    FF_DEBUG("Parsed OpenBSD SMBIOS table address: 0x%llx", parsedAddress);
-
-    FF_AUTO_CLOSE_FD int fd = open("/dev/mem", O_RDONLY | O_CLOEXEC);
-    if (fd < 0) {
-        FF_DEBUG("Failed to open /dev/mem: %s", strerror(errno));
-        return false;
-    }
-
-    uint32_t readLength = 0x10000;
-    ffStrbufClear(buffer);
-    ffStrbufEnsureFixedLengthFree(buffer, readLength);
-
-    FF_DEBUG("Attempting to read OpenBSD SMBIOS table data: %u bytes at 0x%lx",
-        readLength,
-        (unsigned long) tableAddress);
-
-    if (!readPhysicalMemory(fd, tableAddress, readLength, buffer->chars)) {
-        FF_DEBUG("Failed to read OpenBSD SMBIOS table data");
-        return false;
-    }
-
-    uint32_t detectedLength = 0;
-    if (detectSmbiosTableLength((const uint8_t*) buffer->chars, readLength, &detectedLength)) {
-        buffer->length = detectedLength;
-        buffer->chars[buffer->length] = '\0';
-        FF_DEBUG("Determined OpenBSD SMBIOS table length: %u bytes", detectedLength);
-        return true;
-    }
-
-    FF_DEBUG("SMBIOS end-of-table marker not found within first %u bytes; give up", readLength);
-    ffStrbufClear(buffer);
-    return false;
-}
-#    endif
-
 static bool fillTableBufferFallback(FFstrbuf* buffer) {
     const char* devMem =
-#if __HAIKU__
+    #if __HAIKU__
         "/dev/misc/mem";
-#else
+    #else
         "/dev/mem"; // kern.securelevel must be -1
-#endif
+    #endif
     FF_DEBUG("Using physical memory searching implementation: %s", devMem);
 
     uint32_t tableLength = 0;
@@ -502,27 +355,176 @@ static bool fillTableBufferFallback(FFstrbuf* buffer) {
     return true;
 }
 
-static bool fillTableBufferFast(FFstrbuf* buffer) {
-#    if !__HAIKU__ && !__GNU__
-#        ifdef __linux__
+    #ifdef __OpenBSD__
+static bool detectSmbiosTableLength(const uint8_t* data, uint32_t bufferLength, uint32_t* tableLength) {
+    const uint8_t* p = data;
+    const uint8_t* end = data + bufferLength;
+
+    while (p + sizeof(FFSmbiosHeader) <= end) {
+        const FFSmbiosHeader* header = (const FFSmbiosHeader*) p;
+        if (header->Length < sizeof(*header)) {
+            FF_DEBUG("Invalid SMBIOS structure length %u at offset 0x%lx",
+                header->Length,
+                (unsigned long) (p - data));
+            return false;
+        }
+
+        if (header->Handle >= 0xFF00) {
+            FF_DEBUG("Invalid SMBIOS structure handle 0x%04x at offset 0x%lx",
+                header->Handle,
+                (unsigned long) (p - data));
+            return false;
+        }
+
+        const uint8_t* formattedEnd = p + header->Length;
+        if (formattedEnd > end) {
+            FF_DEBUG("Truncated SMBIOS structure at offset 0x%lx: length %u is too small",
+                (unsigned long) (p - data),
+                header->Length);
+            return false;
+        }
+
+        const char* string = (const char*) formattedEnd;
+        const char* stringEnd = (const char*) end;
+        while (true) {
+            size_t remaining = (size_t) (stringEnd - string);
+            if (remaining == 0) {
+                return false;
+            }
+
+            const char* nul = memchr(string, '\0', remaining);
+            if (!nul) {
+                return false;
+            }
+
+            string = nul + 1;
+            if (string >= stringEnd) {
+                return false;
+            }
+
+            if (*string == '\0') {
+                ++string;
+                break;
+            }
+        }
+
+        if (header->Type == FF_SMBIOS_TYPE_END_OF_TABLE) {
+            *tableLength = (uint32_t) (string - (const char*) data);
+            return true;
+        }
+
+        p = (const uint8_t*) string;
+    }
+
+    return false;
+}
+
+static bool fillTableBufferPlatform(FFstrbuf* buffer) {
+    FF_DEBUG("Using OpenBSD /var/run/dmesg.boot implementation");
+
+    char dmesg[2048];
+    ssize_t size = ffReadFileData("/var/run/dmesg.boot", sizeof(dmesg) - 1, dmesg);
+    if (size <= 0) {
+        FF_DEBUG("Failed to read /var/run/dmesg.boot");
+        return false;
+    } else {
+        FF_DEBUG("Successfully read %zd bytes from /var/run/dmesg.boot", size);
+    }
+    dmesg[size] = '\0';
+
+    const char* const needle = "\nbios0 at mainbus0: SMBIOS rev. ";
+    size_t needleLen = strlen(needle);
+    char* line = memmem(dmesg, (size_t) size, needle, needleLen);
+    if (!line) {
+        FF_DEBUG("Failed to find SMBIOS line in /var/run/dmesg.boot");
+        return false;
+    }
+    line += needleLen;
+
+    char* lineEnd = memchr(line, '\n', (size_t) ((dmesg + size) - line));
+    if (!lineEnd) {
+        lineEnd = dmesg + size;
+    }
+
+    char* address = memchr(line, '@', (size_t) (lineEnd - line));
+    if (!address) {
+        FF_DEBUG("Failed to find SMBIOS table address in dmesg line");
+        return false;
+    }
+
+    do {
+        ++address;
+    } while (address < lineEnd && (*address == ' ' || *address == '\t'));
+
+    errno = 0;
+    char* addressEnd = nullptr;
+    unsigned long long parsedAddress = strtoull(address, &addressEnd, 16);
+    if (errno != 0 || addressEnd == address || parsedAddress == 0) {
+        FF_DEBUG("Failed to parse OpenBSD SMBIOS table address from line: %.*s",
+            (int) (lineEnd - line),
+            line);
+        return false;
+    }
+
+    off_t tableAddress = (off_t) parsedAddress;
+    FF_DEBUG("Parsed OpenBSD SMBIOS table address: 0x%llx", parsedAddress);
+
+    FF_AUTO_CLOSE_FD int fd = open("/dev/mem", O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        FF_DEBUG("Failed to open /dev/mem: %s", strerror(errno));
+        return false;
+    }
+
+    uint32_t readLength = 0x10000;
+    ffStrbufClear(buffer);
+    ffStrbufEnsureFixedLengthFree(buffer, readLength);
+
+    FF_DEBUG("Attempting to read OpenBSD SMBIOS table data: %u bytes at 0x%lx",
+        readLength,
+        (unsigned long) tableAddress);
+
+    if (!readPhysicalMemory(fd, tableAddress, readLength, buffer->chars)) {
+        FF_DEBUG("Failed to read OpenBSD SMBIOS table data");
+        return false;
+    }
+
+    uint32_t detectedLength = 0;
+    if (detectSmbiosTableLength((const uint8_t*) buffer->chars, readLength, &detectedLength)) {
+        buffer->length = detectedLength;
+        buffer->chars[buffer->length] = '\0';
+        FF_DEBUG("Determined OpenBSD SMBIOS table length: %u bytes", detectedLength);
+        return true;
+    }
+
+    FF_DEBUG("SMBIOS end-of-table marker not found within first %u bytes; give up", readLength);
+    ffStrbufClear(buffer);
+    return false;
+}
+    #else
+static bool fillTableBufferPlatform(FFstrbuf* buffer) {
+        #if __HAIKU__ && __GNU__
+    return false;
+        #elif defined(__linux__)
     FF_DEBUG("Using Linux implementation - trying /sys/firmware/dmi/tables/DMI");
-    if (!ffAppendFileBuffer("/sys/firmware/dmi/tables/DMI", buffer))
-#        elif defined(__OpenBSD__)
-    return fillTableBufferOpenBSD(buffer);
-#        endif
-#        if !defined(__OpenBSD__)
+    if (ffAppendFileBuffer("/sys/firmware/dmi/tables/DMI", buffer)) {
+        return true;
+    }
+
+    FF_DEBUG("Failed to read /sys/firmware/dmi/tables/DMI, falling back to memory-mapped implementation");
+        #endif
+
     {
-#        if !defined(__sun) && !defined(__NetBSD__)
+        #if !defined(__sun) && !defined(__NetBSD__)
         FF_DEBUG("Using memory-mapped implementation");
         FF_STRBUF_AUTO_DESTROY strEntryAddress = ffStrbufCreate();
-#            ifdef __FreeBSD__
+            #ifdef __FreeBSD__
         FF_DEBUG("Using FreeBSD kenv implementation");
         if (!ffSettingsGetFreeBSDKenv("hint.smbios.0.mem", &strEntryAddress)) {
             FF_DEBUG("Failed to get SMBIOS address from FreeBSD kenv");
             return false; // non-UEFI systems
         }
         FF_DEBUG("Got SMBIOS address from kenv: %s", strEntryAddress.chars);
-#            elif defined(__linux__)
+            #elif defined(__linux__)
         {
             FF_DEBUG("Using Linux EFI systab implementation");
             FF_STRBUF_AUTO_DESTROY systab = ffStrbufCreate();
@@ -537,9 +539,9 @@ static bool fillTableBufferFast(FFstrbuf* buffer) {
             }
             FF_DEBUG("Found SMBIOS entry in systab: %s", strEntryAddress.chars);
         }
-#            endif
+            #endif
 
-        off_t entryAddress = (off_t) strtol(strEntryAddress.chars, NULL, 16);
+        off_t entryAddress = (off_t) strtol(strEntryAddress.chars, nullptr, 16);
         if (entryAddress == 0) {
             FF_DEBUG("Invalid SMBIOS entry address: 0");
             return false;
@@ -561,14 +563,14 @@ static bool fillTableBufferFast(FFstrbuf* buffer) {
             return false;
         }
         FF_DEBUG("Successfully read SMBIOS entry point data");
-#        else
+        #else
         // Sun or NetBSD
         FF_DEBUG("Using %s specific implementation",
-#            ifdef __NetBSD__
+            #ifdef __NetBSD__
             "NetBSD"
-#            else
+            #else
             "SunOS"
-#            endif
+            #endif
         );
 
         FF_AUTO_CLOSE_FD int fd = open("/dev/smbios", O_RDONLY | O_CLOEXEC);
@@ -579,7 +581,7 @@ static bool fillTableBufferFast(FFstrbuf* buffer) {
         FF_DEBUG("/dev/smbios opened successfully with fd=%d", fd);
 
         FFSmbiosEntryPoint entryPoint;
-#            ifdef __NetBSD__
+            #ifdef __NetBSD__
         off_t addr = (off_t) ffSysctlGetInt64("machdep.smbios", 0);
         if (addr == 0) {
             FF_DEBUG("Failed to get SMBIOS address from sysctl");
@@ -592,15 +594,15 @@ static bool fillTableBufferFast(FFstrbuf* buffer) {
             return false;
         }
         FF_DEBUG("Successfully read SMBIOS entry point");
-#            else
+            #else
         FF_DEBUG("Reading SMBIOS entry point from /dev/smbios");
         if (ffReadFDData(fd, sizeof(entryPoint), &entryPoint) < 1) {
             FF_DEBUG("Failed to read SMBIOS entry point: %s", strerror(errno));
             return false;
         }
         FF_DEBUG("Successfully read SMBIOS entry point");
-#            endif
-#        endif
+            #endif
+        #endif
 
         uint32_t tableLength = 0;
         off_t tableAddress = 0;
@@ -652,11 +654,10 @@ static bool fillTableBufferFast(FFstrbuf* buffer) {
             return false;
         }
     }
-#        endif
-#    endif
 
     return true;
 }
+    #endif
 
 const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
     static FFstrbuf buffer;
@@ -665,12 +666,12 @@ const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
         FF_DEBUG("Initializing SMBIOS buffer");
         ffStrbufInit(&buffer);
 
-        if (!fillTableBufferFast(&buffer)) {
-            FF_DEBUG("Fast SMBIOS retrieval failed, trying fallback method");
+        if (!fillTableBufferPlatform(&buffer)) {
+            FF_DEBUG("Platform specific SMBIOS retrieval failed, trying fallback method");
             if (!fillTableBufferFallback(&buffer)) {
                 FF_DEBUG("Fallback SMBIOS retrieval also failed");
                 ffStrbufDestroy(&buffer);
-                return NULL;
+                return nullptr;
             }
         }
 
@@ -681,15 +682,15 @@ const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
 
     if (buffer.length == 0) {
         FF_DEBUG("No valid SMBIOS data available");
-        return NULL;
+        return nullptr;
     }
 
     return &smbiosTable;
 }
 #elif defined(_WIN32)
-#    include "common/windows/nt.h"
+    #include "common/windows/nt.h"
 
-#    pragma GCC diagnostic ignored "-Wmultichar"
+    #pragma GCC diagnostic ignored "-Wmultichar"
 
 typedef struct FFRawSmbiosData {
     uint8_t Used20CallingMethod;
@@ -716,13 +717,13 @@ const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
         NtQuerySystemInformation(SystemFirmwareTableInformation, &sfti, sizeof(sfti), &bufSize);
         if (bufSize <= sizeof(FFRawSmbiosData) + sizeof(sfti)) {
             FF_DEBUG("Invalid firmware table size: %lu (must be > %zu)", bufSize, sizeof(FFRawSmbiosData) + sizeof(sfti));
-            return NULL;
+            return nullptr;
         }
         if (bufSize != sfti.TableBufferLength + (ULONG) sizeof(sfti)) {
             FF_DEBUG("Firmware table size mismatch: NtQuerySystemInformation returned %lu but expected %lu",
                 bufSize,
                 sfti.TableBufferLength + (ULONG) sizeof(sfti));
-            return NULL;
+            return nullptr;
         }
         FF_DEBUG("Firmware table size: %lu bytes", bufSize);
 
@@ -733,8 +734,8 @@ const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
         if (!NT_SUCCESS(NtQuerySystemInformation(SystemFirmwareTableInformation, buffer, bufSize, &bufSize))) {
             FF_DEBUG("NtQuerySystemInformation(SystemFirmwareTableInformation) failed");
             free(buffer);
-            buffer = NULL;
-            return NULL;
+            buffer = nullptr;
+            return nullptr;
         }
         FFRawSmbiosData* rawData = (FFRawSmbiosData*) buffer->TableBuffer;
 
@@ -745,19 +746,19 @@ const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
 
         if (!parseSmbiosTable(rawData->SMBIOSTableData, rawData->Length)) {
             free(buffer);
-            buffer = NULL;
-            return NULL;
+            buffer = nullptr;
+            return nullptr;
         }
     }
 
     if (!buffer) {
         FF_DEBUG("No valid SMBIOS data available");
-        return NULL;
+        return nullptr;
     }
     return &smbiosTable;
 }
 #elif defined(__APPLE__)
-#    include "common/apple/cf_helpers.h"
+    #include "common/apple/cf_helpers.h"
 
 const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
     static CFDataRef smbiosDataBuffer;
@@ -770,33 +771,33 @@ const FFSmbiosHeaderTable* ffGetSmbiosHeaderTable() {
 
         if (!registryEntry) {
             FF_DEBUG("IOServiceGetMatchingService() failed to find AppleSMBIOS");
-            return NULL;
+            return nullptr;
         }
 
         FF_DEBUG("AppleSMBIOS service found, retrieving SMBIOS data");
         smbiosDataBuffer = IORegistryEntryCreateCFProperty(registryEntry, CFSTR("SMBIOS"), kCFAllocatorDefault, kNilOptions);
         if (!smbiosDataBuffer) {
             FF_DEBUG("IORegistryEntryCreateCFProperty() failed to get SMBIOS data");
-            return NULL;
+            return nullptr;
         }
         if (CFGetTypeID(smbiosDataBuffer) != CFDataGetTypeID()) {
             FF_DEBUG("Unexpected SMBIOS data type: expected CFData");
             CFRelease(smbiosDataBuffer);
-            smbiosDataBuffer = NULL;
-            return NULL;
+            smbiosDataBuffer = nullptr;
+            return nullptr;
         }
 
         FF_DEBUG("Successfully retrieved SMBIOS data: %lu bytes", CFDataGetLength(smbiosDataBuffer));
         if (!parseSmbiosTable((const uint8_t*) CFDataGetBytePtr(smbiosDataBuffer), (uint32_t) CFDataGetLength(smbiosDataBuffer))) {
             CFRelease(smbiosDataBuffer);
-            smbiosDataBuffer = NULL;
-            return NULL;
+            smbiosDataBuffer = nullptr;
+            return nullptr;
         }
     }
 
     if (!smbiosDataBuffer) {
         FF_DEBUG("No valid SMBIOS data available");
-        return NULL;
+        return nullptr;
     }
 
     return &smbiosTable;

@@ -3,7 +3,7 @@
 #include "common/parsing.h"
 #include "common/processing.h"
 #include "common/thread.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -21,7 +21,7 @@ static pid_t getShellInfo(FFShellResult* result, pid_t pid) {
     pid_t ppid = 0;
     int32_t tty = -1;
 
-    const char* userShellName = NULL;
+    const char* userShellName = nullptr;
     {
         uint32_t index = ffStrbufLastIndexC(&instance.state.platform.userShell, '/');
         if (index == instance.state.platform.userShell.length) {
@@ -31,7 +31,7 @@ static pid_t getShellInfo(FFShellResult* result, pid_t pid) {
         }
     }
 
-    while (pid > 1 && ffProcessGetBasicInfoLinux(pid, &result->processName, &ppid, &tty) == NULL) {
+    while (pid > 1 && ffProcessGetBasicInfoLinux(pid, &result->processName, &ppid, &tty) == nullptr) {
         if (!ffStrbufEqualS(&result->processName, userShellName)) {
             // Common programs that are between terminal and own process, but are not the shell
             if (
@@ -79,7 +79,7 @@ static pid_t getShellInfo(FFShellResult* result, pid_t pid) {
 static pid_t getTerminalInfo(FFTerminalResult* result, pid_t pid) {
     pid_t ppid = 0;
 
-    while (pid > 1 && ffProcessGetBasicInfoLinux(pid, &result->processName, &ppid, NULL) == NULL) {
+    while (pid > 1 && ffProcessGetBasicInfoLinux(pid, &result->processName, &ppid, nullptr) == nullptr) {
         // Known shells
         if (
             pid == 1 || // init/systemd
@@ -130,7 +130,7 @@ static pid_t getTerminalInfo(FFTerminalResult* result, pid_t pid) {
                         break;
                     }
                 }
-                if (pLeft == pRight && ffProcessGetBasicInfoLinux(ppid, &result->processName, &ppid, NULL) != NULL) {
+                if (pLeft == pRight && ffProcessGetBasicInfoLinux(ppid, &result->processName, &ppid, nullptr) != nullptr) {
                     return 0;
                 }
             }
@@ -147,13 +147,13 @@ static pid_t getTerminalInfo(FFTerminalResult* result, pid_t pid) {
 
 static bool getTerminalInfoByPidEnv(FFTerminalResult* result, const char* pidEnv) {
     const char* envStr = getenv(pidEnv);
-    if (envStr == NULL) {
+    if (envStr == nullptr) {
         return false;
     }
 
-    pid_t pid = (pid_t) strtol(envStr, NULL, 10);
+    pid_t pid = (pid_t) strtol(envStr, nullptr, 10);
     result->pid = (uint32_t) pid;
-    if (ffProcessGetBasicInfoLinux(pid, &result->processName, (pid_t*) &result->ppid, NULL) == NULL) {
+    if (ffProcessGetBasicInfoLinux(pid, &result->processName, (pid_t*) &result->ppid, nullptr) == nullptr) {
         ffProcessGetInfoLinux(pid, &result->processName, &result->exe, &result->exeName, &result->exePath);
         return true;
     }
@@ -185,15 +185,15 @@ static void getTerminalFromEnv(FFTerminalResult* result) {
         result->pid = result->ppid = 0;
     }
 
-    const char* term = NULL;
+    const char* term = nullptr;
 
     // SSH
     if (
-        getenv("SSH_TTY") != NULL) {
+        getenv("SSH_TTY") != nullptr) {
         term = getenv("SSH_TTY");
     } else if (
-        getenv("KITTY_PID") != NULL ||
-        getenv("KITTY_INSTALLATION_DIR") != NULL) {
+        getenv("KITTY_PID") != nullptr ||
+        getenv("KITTY_INSTALLATION_DIR") != nullptr) {
         if (getTerminalInfoByPidEnv(result, "KITTY_PID")) {
             return;
         }
@@ -203,29 +203,29 @@ static void getTerminalFromEnv(FFTerminalResult* result) {
 #ifdef __linux__ // WSL
     // Windows Terminal
     else if (
-        getenv("WT_SESSION") != NULL ||
-        getenv("WT_PROFILE_ID") != NULL)
+        getenv("WT_SESSION") != nullptr ||
+        getenv("WT_PROFILE_ID") != nullptr)
         term = "Windows Terminal";
 
     // ConEmu
     else if (
-        getenv("ConEmuPID") != NULL) {
+        getenv("ConEmuPID") != nullptr) {
         term = "ConEmu";
     }
 #endif
 
     // Alacritty
     else if (
-        getenv("ALACRITTY_SOCKET") != NULL ||
-        getenv("ALACRITTY_LOG") != NULL ||
-        getenv("ALACRITTY_WINDOW_ID") != NULL) {
+        getenv("ALACRITTY_SOCKET") != nullptr ||
+        getenv("ALACRITTY_LOG") != nullptr ||
+        getenv("ALACRITTY_WINDOW_ID") != nullptr) {
         term = "Alacritty";
     }
 #ifdef __ANDROID__
     // Termux
     else if (
-        getenv("TERMUX_VERSION") != NULL ||
-        getenv("TERMUX_MAIN_PACKAGE_FORMAT") != NULL) {
+        getenv("TERMUX_VERSION") != nullptr ||
+        getenv("TERMUX_MAIN_PACKAGE_FORMAT") != nullptr) {
         if (getTerminalInfoByPidEnv(result, "TERMUX_APP__PID")) {
             return;
         }
@@ -236,22 +236,22 @@ static void getTerminalFromEnv(FFTerminalResult* result) {
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__GNU__)
     // Konsole
     else if (
-        getenv("KONSOLE_VERSION") != NULL)
+        getenv("KONSOLE_VERSION") != nullptr)
         term = "konsole";
 
     else if (
-        getenv("GNOME_TERMINAL_SCREEN") != NULL ||
-        getenv("GNOME_TERMINAL_SERVICE") != NULL) {
+        getenv("GNOME_TERMINAL_SCREEN") != nullptr ||
+        getenv("GNOME_TERMINAL_SERVICE") != nullptr) {
         term = "gnome-terminal";
     }
 #endif
 
     // MacOS, mintty
-    else if (getenv("TERM_PROGRAM") != NULL) {
+    else if (getenv("TERM_PROGRAM") != nullptr) {
         term = getenv("TERM_PROGRAM");
     }
 
-    else if (getenv("LC_TERMINAL") != NULL) {
+    else if (getenv("LC_TERMINAL") != nullptr) {
         term = getenv("LC_TERMINAL");
     }
 
@@ -280,20 +280,15 @@ static void getUserShellFromEnv(FFShellResult* result) {
     }
 }
 
-bool fftsGetShellVersion(FFstrbuf* exe, const char* exeName, FFstrbuf* version);
-
-bool fftsGetTerminalVersion(FFstrbuf* processName, FFstrbuf* exe, FFstrbuf* version);
-
 static void setShellInfoDetails(FFShellResult* result) {
-    ffStrbufClear(&result->version);
-    fftsGetShellVersion(result->exePath.length > 0 ? &result->exePath : &result->exe, result->exeName, &result->version);
-
     if (ffStrbufEqualS(&result->processName, "pwsh")) {
         ffStrbufInitStatic(&result->prettyName, "PowerShell");
     } else if (ffStrbufEqualS(&result->processName, "nu")) {
         ffStrbufInitStatic(&result->prettyName, "nushell");
     } else if (ffStrbufEqualS(&result->processName, "oil.ovm")) {
         ffStrbufInitStatic(&result->prettyName, "Oils");
+    } else if (ffStrbufEqualS(&result->processName, "busybox")) {
+        ffStrbufInitStatic(&result->prettyName, "ash");
     } else {
         // https://github.com/fastfetch-cli/fastfetch/discussions/280#discussioncomment-3831734
         ffStrbufInitS(&result->prettyName, result->exeName);
@@ -301,11 +296,13 @@ static void setShellInfoDetails(FFShellResult* result) {
 }
 
 static void setTerminalInfoDetails(FFTerminalResult* result) {
-    if (ffStrbufStartsWithC(&result->processName, '.') && ffStrbufContainS(&result->processName, "-wrap")) {
-        // For NixOS. Ref: #510 and https://github.com/NixOS/nixpkgs/pull/249428
-        // We use processName when detecting version and font, overriding it for simplification
-        ffStrbufSubstrBeforeLastC(&result->processName, '-');
+    // For Nixpkgs. Ref: #510 and https://github.com/NixOS/nixpkgs/pull/249428
+    // We use processName when detecting version and font, overriding it for simplification
+    if (ffStrbufStartsWithC(&result->processName, '.') && ffStrbufStartsWithS(&result->exePath,"/nix/store")) {
         ffStrbufSubstrAfter(&result->processName, 0);
+        if (strlen(result->exeName) < 15) {
+            ffStrbufSubstrBeforeLastC(&result->processName, '-');
+        }
     }
 
     if (ffStrbufEqualS(&result->processName, "wezterm-gui")) {
@@ -364,21 +361,19 @@ static void setTerminalInfoDetails(FFTerminalResult* result) {
 
 #endif
 
-    else if (strncmp(result->exeName, result->processName.chars, result->processName.length) == 0) { // if exeName starts with processName, print it. Otherwise print processName
+    else if (strncmp(result->exeName, result->processName.chars, result->processName.length) == 0 || (ffStrbufStartsWithS(&result->exePath,"/nix/store") && strlen(result->exeName) > 15)) { // if exeName starts with processName, print it. Otherwise print processName. For nixpkgs, use exeName if processName can't be unwrapped
         ffStrbufInitS(&result->prettyName, result->exeName);
     } else {
         ffStrbufInitCopy(&result->prettyName, &result->processName);
     }
-
-    fftsGetTerminalVersion(&result->processName, result->exePath.length > 0 ? &result->exePath : &result->exe, &result->version);
 }
 
 #if defined(MAXPATH)
-#    define FF_EXE_PATH_LEN MAXPATH
+    #define FF_EXE_PATH_LEN MAXPATH
 #elif defined(PATH_MAX)
-#    define FF_EXE_PATH_LEN PATH_MAX
+    #define FF_EXE_PATH_LEN PATH_MAX
 #else
-#    define FF_EXE_PATH_LEN 260
+    #define FF_EXE_PATH_LEN 260
 #endif
 
 const FFShellResult* ffDetectShell() {
@@ -403,12 +398,18 @@ const FFShellResult* ffDetectShell() {
     const char* ignoreParent = getenv("FFTS_IGNORE_PARENT");
     if (ignoreParent && ffStrEquals(ignoreParent, "1")) {
         FF_STRBUF_AUTO_DESTROY _ = ffStrbufCreate();
-        ffProcessGetBasicInfoLinux(ppid, &_, &ppid, NULL);
+        ffProcessGetBasicInfoLinux(ppid, &_, &ppid, nullptr);
     }
 
     ppid = getShellInfo(&result, ppid);
     getUserShellFromEnv(&result);
-    setShellInfoDetails(&result);
+
+    if (result.processName.length > 0) {
+        setShellInfoDetails(&result);
+        if (instance.config.general.detectVersion) {
+            fftsGetShellVersion(result.exePath.length > 0 ? &result.exePath : &result.exe, result.exeName, &result.version);
+        }
+    }
 
     return &result;
 }
@@ -436,7 +437,13 @@ const FFTerminalResult* ffDetectTerminal() {
         ppid = getTerminalInfo(&result, ppid);
     }
     getTerminalFromEnv(&result);
-    setTerminalInfoDetails(&result);
+
+    if (result.processName.length > 0) {
+        setTerminalInfoDetails(&result);
+        if (instance.config.general.detectVersion) {
+            fftsGetTerminalVersion(&result.processName, result.exePath.length > 0 ? &result.exePath : &result.exe, &result.version);
+        }
+    }
 
     return &result;
 }

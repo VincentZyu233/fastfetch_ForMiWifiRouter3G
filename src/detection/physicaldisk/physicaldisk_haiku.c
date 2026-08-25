@@ -1,7 +1,7 @@
 #include "physicaldisk.h"
 
 #include "common/io.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 #include <OS.h>
 #include <StorageDefs.h>
@@ -77,7 +77,7 @@ static const char* searchRawDeviceFile(FFstrbuf* path, const char* diskType, FFl
 
         ffStrbufSubstrBefore(path, baseLen);
     }
-    return NULL;
+    return nullptr;
 }
 
 const char* ffDetectPhysicalDisk(FFlist* result, FFPhysicalDiskOptions* options) {
@@ -100,5 +100,5 @@ const char* ffDetectPhysicalDisk(FFlist* result, FFPhysicalDiskOptions* options)
         ffStrbufSubstrBefore(&path, baseLen);
     }
 
-    return NULL;
+    return nullptr;
 }

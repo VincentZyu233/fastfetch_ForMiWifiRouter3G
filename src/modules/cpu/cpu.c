@@ -23,9 +23,9 @@ bool ffPrintCPU(FFCPUOptions* options) {
     const char* error = ffDetectCPU(options, &cpu);
 
     if (error) {
-        ffPrintError(FF_CPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(CPU), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "%s", error);
     } else if (cpu.vendor.length == 0 && cpu.name.length == 0 && cpu.coresOnline <= 1) {
-        ffPrintError(FF_CPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No CPU detected");
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(CPU), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "No CPU detected");
     } else {
         FF_STRBUF_AUTO_DESTROY coreTypes = ffStrbufCreate();
         if (options->showPeCoreCount) {
@@ -43,13 +43,9 @@ bool ffPrintCPU(FFCPUOptions* options) {
         }
 
         if (options->moduleArgs.outputFormat.length == 0) {
-            ffPrintLogoAndKey(FF_CPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
+            ffPrintLogoAndKey(FF_MODULE_GET_DISPLAY_NAME(CPU), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
 
             FF_STRBUF_AUTO_DESTROY str = ffStrbufCreate();
-
-            if (cpu.packages > 1) {
-                ffStrbufAppendF(&str, "%u x ", cpu.packages);
-            }
 
             if (cpu.name.length > 0) {
                 ffStrbufAppend(&str, &cpu.name);
@@ -89,7 +85,7 @@ bool ffPrintCPU(FFCPUOptions* options) {
 
             FF_STRBUF_AUTO_DESTROY tempStr = ffStrbufCreate();
             ffTempsAppendNum(cpu.temperature, &tempStr, options->tempConfig, &options->moduleArgs);
-            FF_PRINT_FORMAT_CHECKED(FF_CPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
+            FF_PRINT_FORMAT_CHECKED(FF_MODULE_GET_DISPLAY_NAME(CPU), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, ((FFformatarg[]) {
                                                                                                             FF_ARG(cpu.name, "name"),
                                                                                                             FF_ARG(cpu.vendor, "vendor"),
                                                                                                             FF_ARG(cpu.coresPhysical, "cores-physical"),
@@ -102,6 +98,10 @@ bool ffPrintCPU(FFCPUOptions* options) {
                                                                                                             FF_ARG(cpu.packages, "packages"),
                                                                                                             FF_ARG(cpu.march, "march"),
                                                                                                             FF_ARG(cpu.numaNodes, "numa-nodes"),
+                                                                                                            #if __i386__ || __x86_64__
+                                                                                                            FF_ARG(cpu.codeName, "code-name"),
+                                                                                                            FF_ARG(cpu.technology, "technology"),
+                                                                                                            #endif
                                                                                                         }));
         }
         success = true;
@@ -131,7 +131,7 @@ void ffParseCPUJsonObject(FFCPUOptions* options, yyjson_val* module) {
         }
 
         if (unsafe_yyjson_equals_str(key, "freqNdigits")) {
-            ffPrintError(FF_CPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "modules.CPU.freqNdigits has been moved to display.freq.ndigits");
+            ffPrintError(FF_MODULE_GET_DISPLAY_NAME(CPU), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "modules.CPU.freqNdigits has been moved to display.freq.ndigits");
             continue;
         }
 
@@ -140,7 +140,7 @@ void ffParseCPUJsonObject(FFCPUOptions* options, yyjson_val* module) {
             continue;
         }
 
-        ffPrintError(FF_CPU_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
+        ffPrintError(FF_MODULE_GET_DISPLAY_NAME(CPU), 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, "Unknown JSON key %s", unsafe_yyjson_get_str(key));
     }
 }
 
@@ -150,6 +150,8 @@ void ffGenerateCPUJsonConfig(FFCPUOptions* options, yyjson_mut_doc* doc, yyjson_
     ffTempsGenerateJsonConfig(doc, module, options->temp, options->tempConfig);
 
     yyjson_mut_obj_add_bool(doc, module, "showPeCoreCount", options->showPeCoreCount);
+
+    yyjson_mut_obj_add_strbuf(doc, module, "tempSensor", &options->tempSensor);
 }
 
 bool ffGenerateCPUJsonResult(FFCPUOptions* options, yyjson_mut_doc* doc, yyjson_mut_val* module) {
@@ -212,6 +214,20 @@ bool ffGenerateCPUJsonResult(FFCPUOptions* options, yyjson_mut_doc* doc, yyjson_
             yyjson_mut_obj_add_null(doc, obj, "numaNodes");
         }
 
+        #if __i386__ || __x86_64__
+        if (cpu.codeName) {
+            yyjson_mut_obj_add_str(doc, obj, "codeName", cpu.codeName);
+        } else {
+            yyjson_mut_obj_add_null(doc, obj, "codeName");
+        }
+
+        if (cpu.technology) {
+            yyjson_mut_obj_add_str(doc, obj, "technology", cpu.technology);
+        } else {
+            yyjson_mut_obj_add_null(doc, obj, "technology");
+        }
+        #endif
+
         success = true;
     }
 
@@ -226,7 +242,7 @@ void ffInitCPUOptions(FFCPUOptions* options) {
     ffStrbufInit(&options->tempSensor);
     options->temp = false;
     options->tempConfig = (FFColorRangeConfig) { 60, 80 };
-    options->showPeCoreCount = false;
+    options->showPeCoreCount = true;
 }
 
 void ffDestroyCPUOptions(FFCPUOptions* options) {
@@ -235,8 +251,30 @@ void ffDestroyCPUOptions(FFCPUOptions* options) {
 }
 
 FFModuleBaseInfo ffCPUModuleInfo = {
-    .name = FF_CPU_MODULE_NAME,
-    .description = "Print CPU name, frequency, etc",
+    .name = "CPU",
+    .description = "Print CPU name, frequency, etc.",
+    .displayName = {
+        .en = "CPU",
+        .ar = "المعالج",
+        .cs = "CPU",
+        .de = "CPU",
+        .es = "CPU",
+        .fr = "CPU",
+        .gl = "CPU",
+        .he = "מעבד",
+        .id = "CPU",
+        .it = "CPU",
+        .ja = "CPU",
+        .ko = "CPU",
+        .pl = "CPU",
+        .pt = "CPU",
+        .ru = "Процессор",
+        .tr = "CPU",
+        .uk = "CPU",
+        .vi = "CPU",
+        .zh_CN = "CPU",
+        .zh_TW = "CPU",
+    },
     .initOptions = (void*) ffInitCPUOptions,
     .destroyOptions = (void*) ffDestroyCPUOptions,
     .parseJsonObject = (void*) ffParseCPUJsonObject,
@@ -256,5 +294,10 @@ FFModuleBaseInfo ffCPUModuleInfo = {
         { "Processor package count", "packages" },
         { "CPU microarchitecture", "march" },
         { "NUMA node count", "numa-nodes" },
-    }))
+        #if __i386__ || __x86_64__
+        { "CPU code name", "code-name" },
+        { "CPU technology", "technology" },
+        #endif
+    })),
+    .defaultOrder = 33,
 };

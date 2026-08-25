@@ -7,9 +7,9 @@
 #include <sys/kbio.h>
 
 #if __has_include(<dev/usb/usb_ioctl.h>)
-#    include <dev/usb/usb_ioctl.h> // FreeBSD
+    #include <dev/usb/usb_ioctl.h> // FreeBSD
 #else
-#    include <bus/u4b/usb_ioctl.h> // DragonFly
+    #include <bus/u4b/usb_ioctl.h> // DragonFly
 #endif
 
 static const char* detectByIoctl(FFlist* devices) {
@@ -35,7 +35,7 @@ static const char* detectByIoctl(FFlist* devices) {
     ffStrbufAppendF(&device->name, " (kbd%d)", kbdInfo.kb_index);
 
     ffStrbufInit(&device->serial);
-    return NULL;
+    return nullptr;
 }
 
 #define MAX_UHID_KBDS 64
@@ -80,13 +80,13 @@ static const char* detectByUsbhid(FFlist* devices) {
         hid_dispose_report_desc(repDesc);
     }
 
-    return NULL;
+    return nullptr;
 }
 
 const char* ffDetectKeyboard(FFlist* devices /* List of FFKeyboardDevice */) {
     detectByUsbhid(devices);
     if (devices->length > 0) {
-        return NULL;
+        return nullptr;
     }
     return detectByIoctl(devices);
 }

@@ -6,12 +6,12 @@
 #include <stdalign.h>
 
 #if _WIN32
-#    include <ntdef.h>
-#    include <windef.h>
+    #include <ntdef.h>
+    #include <windef.h>
 #else
-#    include <sys/ioctl.h>
-#    include <uchar.h>
-#    include <errno.h>
+    #include <sys/ioctl.h>
+    #include <uchar.h>
+    #include <errno.h>
 
 typedef struct _LUID {
     uint32_t LowPart;
@@ -40,8 +40,8 @@ typedef union {
     int64_t QuadPart;
 } LARGE_INTEGER;
 typedef int32_t NTSTATUS; // 0 for success, -1 for failure
-#    define NT_SUCCESS(Status) ((NTSTATUS) (Status) >= 0)
-#    define _In_range_(low, hi)
+    #define NT_SUCCESS(Status) ((NTSTATUS) (Status) >= 0)
+    #define _In_range_(low, hi)
 #endif
 
 #define D3DKMT_ALIGN64 alignas(8)
@@ -152,6 +152,18 @@ typedef struct _D3DKMT_QUERY_DEVICE_IDS {
     D3DKMT_DEVICE_IDS DeviceIds; // out:
 } D3DKMT_QUERY_DEVICE_IDS;
 
+typedef enum _D3DKMT_PNP_KEY_TYPE {
+    D3DKMT_PNP_KEY_HARDWARE,
+    D3DKMT_PNP_KEY_SOFTWARE
+} D3DKMT_PNP_KEY_TYPE;
+
+typedef struct _D3DKMT_QUERY_PHYSICAL_ADAPTER_PNP_KEY {
+    UINT PhysicalAdapterIndex;
+    D3DKMT_PNP_KEY_TYPE PnPKeyType;
+    WCHAR* pDest;
+    UINT* pCchDest;
+} D3DKMT_QUERY_PHYSICAL_ADAPTER_PNP_KEY;
+
 typedef enum _QAI_DRIVERVERSION {
     KMT_DRIVERVERSION_WDDM_1_0 = 1000,            // Windows Vista
     KMT_DRIVERVERSION_WDDM_1_1_PRERELEASE = 1102, // Windows Vista with prereleased Win7 features
@@ -187,6 +199,7 @@ typedef enum _KMTQUERYADAPTERINFOTYPE {
     KMTQAITYPE_UMD_DRIVER_VERSION = 18,
     KMTQAITYPE_NODEMETADATA = 25, // WDDM 2.0, Windows 10
     KMTQAITYPE_PHYSICALADAPTERDEVICEIDS = 31,
+    KMTQAITYPE_PHYSICALADAPTERPNPKEY = 41,     // WDDM 2.2, Windows 10 (1703)
     KMTQAITYPE_QUERY_ADAPTER_UNIQUE_GUID = 60, // WDDM 2.4, Windows 10 (1803)
     KMTQAITYPE_NODEPERFDATA = 61,
     KMTQAITYPE_ADAPTERPERFDATA = 62,
@@ -303,18 +316,18 @@ typedef struct _DXGK_NODEMETADATA_FLAGS {
     };
 } DXGK_NODEMETADATA_FLAGS;
 
-typedef struct _DXGK_NODEMETADATA {
+typedef struct [[gnu::packed]] _DXGK_NODEMETADATA {
     DXGK_ENGINE_TYPE EngineType;
     WCHAR FriendlyName[DXGK_MAX_METADATA_NAME_LENGTH];
     DXGK_NODEMETADATA_FLAGS Flags; // WDDM 2.2
     BOOLEAN GpuMmuSupported;       // WDDM 2.0 ???
     BOOLEAN IoMmuSupported;
-} FF_A_PACKED DXGK_NODEMETADATA;
+} DXGK_NODEMETADATA;
 
-typedef struct _D3DKMT_NODEMETADATA {
+typedef struct [[gnu::packed]] _D3DKMT_NODEMETADATA {
     UINT NodeOrdinalAndAdapterIndex; // WDDMv2: High word is physical adapter index, low word is node ordinal
     DXGK_NODEMETADATA NodeData;
-} FF_A_PACKED D3DKMT_NODEMETADATA;
+} D3DKMT_NODEMETADATA;
 static_assert(sizeof(D3DKMT_NODEMETADATA) == 0x4E, "D3DKMT_NODEMETADATA structure size mismatch");
 
 // Functions
@@ -330,12 +343,12 @@ EXTERN_C _Check_return_ NTSTATUS APIENTRY D3DKMTQueryStatistics(_In_ CONST D3DKM
 
 #else
 
-// Ref: https://github.com/microsoft/WSL2-Linux-Kernel/blob/linux-msft-wsl-6.6.y/include/uapi/misc/d3dkmthk.h
-#    define LX_DXOPENADAPTERFROMLUID _IOWR(0x47, 0x01, D3DKMT_OPENADAPTERFROMLUID)
-#    define LX_DXQUERYADAPTERINFO _IOWR(0x47, 0x09, D3DKMT_QUERYADAPTERINFO)
-#    define LX_DXENUMADAPTERS2 _IOWR(0x47, 0x14, D3DKMT_ENUMADAPTERS2)
-#    define LX_DXCLOSEADAPTER _IOWR(0x47, 0x15, D3DKMT_CLOSEADAPTER)
-#    define LX_DXQUERYSTATISTICS _IOWR(0x47, 0x43, D3DKMT_QUERYSTATISTICS)
+    // Ref: https://github.com/microsoft/WSL2-Linux-Kernel/blob/linux-msft-wsl-6.6.y/include/uapi/misc/d3dkmthk.h
+    #define LX_DXOPENADAPTERFROMLUID _IOWR(0x47, 0x01, D3DKMT_OPENADAPTERFROMLUID)
+    #define LX_DXQUERYADAPTERINFO _IOWR(0x47, 0x09, D3DKMT_QUERYADAPTERINFO)
+    #define LX_DXENUMADAPTERS2 _IOWR(0x47, 0x14, D3DKMT_ENUMADAPTERS2)
+    #define LX_DXCLOSEADAPTER _IOWR(0x47, 0x15, D3DKMT_CLOSEADAPTER)
+    #define LX_DXQUERYSTATISTICS _IOWR(0x47, 0x43, D3DKMT_QUERYSTATISTICS)
 
 extern int dxgfd; // File descriptor for /dev/dxg, initialized in gpu_wsl.c
 

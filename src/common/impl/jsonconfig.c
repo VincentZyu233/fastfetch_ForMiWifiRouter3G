@@ -4,7 +4,7 @@
 #include "common/printing.h"
 #include "common/io.h"
 #include "common/time.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "detection/version/version.h"
 #include "modules/modules.h"
 
@@ -67,7 +67,7 @@ const char* ffJsonConfigParseEnum(yyjson_val* val, int* result, FFKeyValuePair p
         for (const FFKeyValuePair* pPair = pairs; pPair->key; ++pPair) {
             if (intVal == pPair->value) {
                 *result = pPair->value;
-                return NULL;
+                return nullptr;
             }
         }
 
@@ -77,7 +77,7 @@ const char* ffJsonConfigParseEnum(yyjson_val* val, int* result, FFKeyValuePair p
         for (const FFKeyValuePair* pPair = pairs; pPair->key; ++pPair) {
             if (ffStrEqualsIgnCase(strVal, pPair->key)) {
                 *result = pPair->value;
-                return NULL;
+                return nullptr;
             }
         }
 
@@ -95,7 +95,7 @@ static bool parseModuleJsonObject(const char* type, yyjson_val* jsonVal, yyjson_
     for (FFModuleBaseInfo** modules = ffModuleInfos[toupper(type[0]) - 'A']; *modules; ++modules) {
         FFModuleBaseInfo* baseInfo = *modules;
         if (ffStrEqualsIgnCase(type, baseInfo->name)) {
-            uint8_t optionBuf[FF_OPTION_MAX_SIZE];
+            alignas(uint64_t) uint8_t optionBuf[FF_OPTION_MAX_SIZE];
             baseInfo->initOptions(optionBuf);
             if (jsonVal) {
                 baseInfo->parseJsonObject(optionBuf, jsonVal);
@@ -133,17 +133,13 @@ static bool parseModuleJsonObject(const char* type, yyjson_val* jsonVal, yyjson_
 
 static void prepareModuleJsonObject(const char* type, yyjson_val* module) {
     switch (type[0]) {
-        case 'b':
-        case 'B': {
-            if (ffStrEqualsIgnCase(type, FF_CPUUSAGE_MODULE_NAME)) {
-                ffPrepareCPUUsage();
-            }
-            break;
-        }
+        #if !FF_MODULE_DISABLE_CPUUSAGE
         case 'c':
         case 'C': {
-            if (ffStrEqualsIgnCase(type, FF_COMMAND_MODULE_NAME)) {
-                FF_A_CLEANUP(ffDestroyCommandOptions) FFCommandOptions options;
+            if (ffStrEqualsIgnCase(type, ffCPUUsageModuleInfo.name)) {
+                ffPrepareCPUUsage();
+            } else if (ffStrEqualsIgnCase(type, ffCommandModuleInfo.name)) {
+                [[gnu::cleanup(ffDestroyCommandOptions)]] FFCommandOptions options;
                 ffInitCommandOptions(&options);
                 if (module) {
                     ffCommandModuleInfo.parseJsonObject(&options, module);
@@ -152,10 +148,13 @@ static void prepareModuleJsonObject(const char* type, yyjson_val* module) {
             }
             break;
         }
+        #endif
+
+        #if !FF_MODULE_DISABLE_DISKIO
         case 'd':
         case 'D': {
-            if (ffStrEqualsIgnCase(type, FF_DISKIO_MODULE_NAME)) {
-                FF_A_CLEANUP(ffDestroyDiskIOOptions) FFDiskIOOptions options;
+            if (ffStrEqualsIgnCase(type, ffDiskIOModuleInfo.name)) {
+                [[gnu::cleanup(ffDestroyDiskIOOptions)]] FFDiskIOOptions options;
                 ffInitDiskIOOptions(&options);
                 if (module) {
                     ffDiskIOModuleInfo.parseJsonObject(&options, module);
@@ -164,10 +163,13 @@ static void prepareModuleJsonObject(const char* type, yyjson_val* module) {
             }
             break;
         }
+        #endif
+
+        #if !FF_MODULE_DISABLE_NETIO
         case 'n':
         case 'N': {
-            if (ffStrEqualsIgnCase(type, FF_NETIO_MODULE_NAME)) {
-                FF_A_CLEANUP(ffDestroyNetIOOptions) FFNetIOOptions options;
+            if (ffStrEqualsIgnCase(type, ffNetIOModuleInfo.name)) {
+                [[gnu::cleanup(ffDestroyNetIOOptions)]] FFNetIOOptions options;
                 ffInitNetIOOptions(&options);
                 if (module) {
                     ffNetIOModuleInfo.parseJsonObject(&options, module);
@@ -176,10 +178,13 @@ static void prepareModuleJsonObject(const char* type, yyjson_val* module) {
             }
             break;
         }
+        #endif
+
+        #if !FF_MODULE_DISABLE_PUBLICIP
         case 'p':
         case 'P': {
-            if (ffStrEqualsIgnCase(type, FF_PUBLICIP_MODULE_NAME)) {
-                FF_A_CLEANUP(ffDestroyPublicIpOptions) FFPublicIPOptions options;
+            if (ffStrEqualsIgnCase(type, ffPublicIPModuleInfo.name)) {
+                [[gnu::cleanup(ffDestroyPublicIpOptions)]] FFPublicIPOptions options;
                 ffInitPublicIpOptions(&options);
                 if (module) {
                     ffPublicIPModuleInfo.parseJsonObject(&options, module);
@@ -188,10 +193,28 @@ static void prepareModuleJsonObject(const char* type, yyjson_val* module) {
             }
             break;
         }
+        #endif
+
+        #if !FF_MODULE_DISABLE_TOP
+        case 't':
+        case 'T': {
+            if (ffStrEqualsIgnCase(type, ffTopModuleInfo.name)) {
+                [[gnu::cleanup(ffDestroyTopOptions)]] FFTopOptions options;
+                ffInitTopOptions(&options);
+                if (module) {
+                    ffTopModuleInfo.parseJsonObject(&options, module);
+                }
+                ffPrepareTopProcesses(options.showTypes);
+            }
+            break;
+        }
+        #endif
+
+        #if !FF_MODULE_DISABLE_WEATHER
         case 'w':
         case 'W': {
-            if (ffStrEqualsIgnCase(type, FF_WEATHER_MODULE_NAME)) {
-                FF_A_CLEANUP(ffDestroyWeatherOptions) FFWeatherOptions options;
+            if (ffStrEqualsIgnCase(type, ffWeatherModuleInfo.name)) {
+                [[gnu::cleanup(ffDestroyWeatherOptions)]] FFWeatherOptions options;
                 ffInitWeatherOptions(&options);
                 if (module) {
                     ffWeatherModuleInfo.parseJsonObject(&options, module);
@@ -200,6 +223,7 @@ static void prepareModuleJsonObject(const char* type, yyjson_val* module) {
             }
             break;
         }
+        #endif
     }
 }
 
@@ -235,7 +259,7 @@ static const char* printJsonConfig(FFdata* data, bool prepare) {
 
     yyjson_val* modules = yyjson_obj_get(root, "modules");
     if (!modules) {
-        return NULL;
+        return nullptr;
     }
     if (!yyjson_is_arr(modules)) {
         return "Property 'modules' must be an array of strings or objects";
@@ -254,12 +278,12 @@ static const char* printJsonConfig(FFdata* data, bool prepare) {
         yyjson_val* module = item;
         const char* type = yyjson_get_str(module);
         if (type) {
-            module = NULL;
+            module = nullptr;
         } else if (yyjson_is_obj(module)) {
             yyjson_val* conditions = yyjson_obj_get(module, "condition");
             if (conditions) {
                 if (!yyjson_is_obj(conditions)) {
-                    return "Property 'conditions' must be an object";
+                    return "Property 'condition' must be an object";
                 }
 
                 yyjson_val* system = yyjson_obj_get(conditions, "system");
@@ -298,7 +322,7 @@ static const char* printJsonConfig(FFdata* data, bool prepare) {
                 return "module object must contain a \"type\" key ( case sensitive )";
             }
             if (yyjson_obj_size(module) == 1) { // contains only Property type
-                module = NULL;
+                module = nullptr;
             }
         } else {
             return "modules must be an array of strings or objects";
@@ -327,7 +351,7 @@ static const char* printJsonConfig(FFdata* data, bool prepare) {
                                                                                                                      : FF_COLOR_FG_RED),
                         ms);
                 }
-                printf("\e7\e[1A\e[9999999C\e[%dD%s\e8", len, str); // Save; Up 1; Right 9999999; Left <len>; Print <str>; Load
+                printf("\e7\e[1A\e[9999999C\e[%dD%s\e8", len - 1, str); // Save; Up 1; Right 9999999; Left <len - 1>; Print <str>; Load
             }
         }
 
@@ -338,7 +362,7 @@ static const char* printJsonConfig(FFdata* data, bool prepare) {
 #endif
     }
 
-    return NULL;
+    return nullptr;
 }
 
 void ffPrintJsonConfig(FFdata* data, bool prepare) {
@@ -350,7 +374,7 @@ void ffPrintJsonConfig(FFdata* data, bool prepare) {
             yyjson_mut_obj_add_str(jsonDoc, obj, "error", error);
             yyjson_mut_doc_set_root(jsonDoc, obj);
         } else {
-            ffPrintError("JsonConfig", 0, NULL, FF_PRINT_TYPE_NO_CUSTOM_KEY, "%s", error);
+            ffPrintError("JsonConfig", 0, nullptr, FF_PRINT_TYPE_NO_CUSTOM_KEY, "%s", error);
         }
     }
 }

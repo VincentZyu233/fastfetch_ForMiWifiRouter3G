@@ -18,7 +18,7 @@ FFDisplayResult* ffdsAppendDisplay(
     uint32_t physicalHeight,
     const char* platformApi) {
     if (width == 0 || height == 0) {
-        return NULL;
+        return nullptr;
     }
 
     FFDisplayResult* display = FF_LIST_ADD(FFDisplayResult, result->displays);
@@ -42,7 +42,7 @@ FFDisplayResult* ffdsAppendDisplay(
     display->hdrStatus = FF_DISPLAY_HDR_STATUS_UNKNOWN;
     display->manufactureYear = 0;
     display->manufactureWeek = 0;
-    display->serial = 0;
+    ffStrbufInit(&display->serial);
     display->drrStatus = FF_DISPLAY_DRR_STATUS_UNKNOWN;
 
     return display;

@@ -3,7 +3,7 @@
 
 #include <private/drivers/poke.h>
 
-const char* ffDetectGPUImpl(FF_A_UNUSED const FFGPUOptions* options, FFlist* gpus) {
+const char* ffDetectGPUImpl([[maybe_unused]] const FFGPUOptions* options, FFlist* gpus) {
     FF_AUTO_CLOSE_FD int pokefd = open(POKE_DEVICE_FULLNAME, O_RDWR | O_CLOEXEC);
     if (pokefd < 0) {
         return "open(POKE_DEVICE_FULLNAME) failed";
@@ -37,6 +37,7 @@ const char* ffDetectGPUImpl(FF_A_UNUSED const FFGPUOptions* options, FFlist* gpu
         gpu->dedicated.total = gpu->dedicated.used = gpu->shared.total = gpu->shared.used = FF_GPU_VMEM_SIZE_UNSET;
         gpu->deviceId = ffGPUPciAddr2Id(0, dev.bus, dev.device, dev.function);
         gpu->frequency = FF_GPU_FREQUENCY_UNSET;
+        gpu->pcieSpeed = FF_GPU_PCIE_SPEED_UNSET;
 
         if (gpu->vendor.chars == FF_GPU_VENDOR_NAME_AMD) {
             ffGPUQueryAmdGpuName(dev.device_id, dev.revision, gpu);
@@ -47,5 +48,5 @@ const char* ffDetectGPUImpl(FF_A_UNUSED const FFGPUOptions* options, FFlist* gpu
         }
     }
 
-    return NULL;
+    return nullptr;
 }

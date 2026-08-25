@@ -7,7 +7,7 @@ void ffPrintLogoAndKey(const char* moduleName, uint8_t moduleIndex, const FFModu
     ffLogoPrintLine();
 
     // This is used by --set-keyless, in this case we want neither the module name nor the separator
-    if (moduleName == NULL) {
+    if (moduleName == nullptr) {
         return;
     }
 
@@ -35,7 +35,7 @@ void ffPrintLogoAndKey(const char* moduleName, uint8_t moduleIndex, const FFModu
         if (instance.config.display.keyType & FF_MODULE_KEY_TYPE_STRING) {
             ffPrintCharTimes(' ', instance.config.display.keyType >> FF_MODULE_KEY_TYPE_SPACE_SHIFT);
 
-            // NULL check is required for modules with custom keys, e.g. disk with the folder path
+            // nullptr check is required for modules with custom keys, e.g. disk with the folder path
             if ((printType & FF_PRINT_TYPE_NO_CUSTOM_KEY) || !moduleArgs || moduleArgs->key.length == 0) {
                 fputs(moduleName, stdout);
 
@@ -81,16 +81,24 @@ void ffPrintLogoAndKey(const char* moduleName, uint8_t moduleIndex, const FFModu
     }
 }
 
-void ffPrintFormat(const char* moduleName, uint8_t moduleIndex, const FFModuleArgs* moduleArgs, FFPrintType printType, uint32_t numArgs, const FFformatarg* arguments) {
+bool ffPrintFormat(const char* moduleName, uint8_t moduleIndex, const FFModuleArgs* moduleArgs, FFPrintType printType, uint32_t numArgs, const FFformatarg* arguments) {
     FF_STRBUF_AUTO_DESTROY buffer = ffStrbufCreate();
-    if (moduleArgs) {
-        ffParseFormatString(&buffer, &moduleArgs->outputFormat, numArgs, arguments);
+    bool success;
+    if (__builtin_expect(moduleArgs != nullptr, 1)) {
+        success = ffParseFormatString(&buffer, &moduleArgs->outputFormat, numArgs, arguments);
     } else {
-        ffStrbufAppendS(&buffer, "unknown");
+        ffStrbufSetStatic(&buffer, "undefined format");
+        success = false;
     }
 
-    ffPrintLogoAndKey(moduleName, moduleIndex, moduleArgs, printType);
-    ffStrbufPutTo(&buffer, stdout);
+    if (success) {
+        ffPrintLogoAndKey(moduleName, moduleIndex, moduleArgs, printType);
+        ffStrbufPutTo(&buffer, stdout);
+    } else {
+        ffPrintError(moduleName, moduleIndex, moduleArgs, printType, "%s", buffer.chars);
+    }
+
+    return success;
 }
 
 void ffPrintError(const char* moduleName, uint8_t moduleIndex, const FFModuleArgs* moduleArgs, FFPrintType printType, const char* message, ...) {

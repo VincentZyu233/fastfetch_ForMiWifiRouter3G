@@ -1,14 +1,14 @@
 #include "sound.h"
 #include "common/io.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 #include <fcntl.h>
 #include <unistd.h>
 #if __has_include(<sys/soundcard.h>)
-#    include <sys/soundcard.h>
+    #include <sys/soundcard.h>
 #else
-// Strangely, they don't provide this file on default installation
-#    include "audio_oss_sunos.h"
+    // Strangely, they don't provide this file on default installation
+    #include "audio_oss_sunos.h"
 #endif
 
 const char* ffDetectSound(FFSoundOptions* options, FFlist* devices) {
@@ -105,5 +105,5 @@ const char* ffDetectSound(FFSoundOptions* options, FFlist* devices) {
             (isMain ? FF_SOUND_TYPE_MAIN : FF_SOUND_TYPE_NONE);
     }
 
-    return NULL;
+    return nullptr;
 }

@@ -1,11 +1,11 @@
 #include "common/kmod.h"
 #include "common/windows/nt.h"
 #include "common/mallocHelper.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 bool ffKmodLoaded(const char* modName) {
     ULONG bufferSize = 0;
-    NtQuerySystemInformation(SystemModuleInformation, NULL, 0, &bufferSize);
+    NtQuerySystemInformation(SystemModuleInformation, nullptr, 0, &bufferSize);
     if (bufferSize == 0) {
         return true; // ignore errors
     }

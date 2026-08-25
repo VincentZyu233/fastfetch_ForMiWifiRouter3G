@@ -1,14 +1,12 @@
 #include "common/netif.h"
 #include "common/io.h"
+#include "common/strutil.h"
 
 #include <net/if.h>
 #include <stdio.h>
 
-#define FF_STR_INDIR(x) #x
-#define FF_STR(x) FF_STR_INDIR(x)
-
 bool ffNetifGetDefaultRouteImplV4(FFNetifDefaultRouteResult* result) {
-    FILE* FF_AUTO_CLOSE_FILE netRoute = fopen("/proc/route", "r");
+    FF_AUTO_CLOSE_FILE FILE* netRoute = fopen("/proc/route", "r");
 
     if (!netRoute) {
         return false;
@@ -25,7 +23,7 @@ bool ffNetifGetDefaultRouteImplV4(FFNetifDefaultRouteResult* result) {
         // TODO: Get the preferred source address
         return true;
     }
-    result->ifName[0] = '0';
+    result->ifName[0] = '\0';
     return false;
 }
 

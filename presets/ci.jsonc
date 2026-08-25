@@ -21,6 +21,7 @@
         "uptime",
         "loadavg",
         "processes",
+        "top",
         "packages",
         "shell",
         "editor",
@@ -51,6 +52,10 @@
             "type": "gpu",
             "driverSpecific": true,
             "temp": true
+        },
+        {
+            "type": "codec",
+            "splitGPU": true
         },
         "memory",
         "physicalmemory",

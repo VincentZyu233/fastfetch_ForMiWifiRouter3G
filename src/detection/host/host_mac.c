@@ -1,5 +1,5 @@
 #include "host.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 const char* ffHostGetMacProductNameWithHwModel(const FFstrbuf* hwModel) {
     // Macbook Pro: https://support.apple.com/en-us/HT201300
@@ -425,7 +425,7 @@ const char* ffHostGetMacProductNameWithHwModel(const FFstrbuf* hwModel) {
             return "iMac (24/20-inch, Early 2009)";
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #ifdef __x86_64__

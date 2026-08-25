@@ -1,7 +1,7 @@
 #include "fastfetch.h"
 #include "common/FFlist.h"
 #include "common/FFstrbuf.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "common/font.h"
 
 #include <string.h>
@@ -16,7 +16,7 @@ void ffFontInit(FFfont* font) {
 }
 
 static void strbufAppendNSExcludingC(FFstrbuf* strbuf, uint32_t length, const char* value, char exclude) {
-    if (value == NULL || length == 0) {
+    if (value == nullptr || length == 0) {
         return;
     }
 
@@ -151,7 +151,7 @@ static void fontPangoParseWord(const char** data, FFfont* font, FFstrbuf* altern
         ffStrStartsWithIgnCase(wordStart, "Black") ||
         ffStrStartsWithIgnCase(wordStart, "Condensed") ||
         ffStrStartsWithIgnCase(wordStart, "Expanded")) {
-        if (alternativeBuffer == NULL) {
+        if (alternativeBuffer == nullptr) {
             alternativeBuffer = FF_LIST_ADD(FFstrbuf, font->styles);
             ffStrbufInit(alternativeBuffer);
         }
@@ -169,7 +169,7 @@ static void fontPangoParseWord(const char** data, FFfont* font, FFstrbuf* altern
         return;
     }
 
-    if (alternativeBuffer != NULL) {
+    if (alternativeBuffer != nullptr) {
         strbufAppendNSExcludingC(alternativeBuffer, wordLength, wordStart, '-');
         return;
     }
@@ -184,7 +184,7 @@ void ffFontInitPango(FFfont* font, const char* data) {
     ffFontInit(font);
 
     while (*data != '\0' && *data != '`' && *data != '\\') {
-        fontPangoParseWord(&data, font, NULL);
+        fontPangoParseWord(&data, font, nullptr);
     }
 
     fontInitPretty(font);
@@ -329,8 +329,8 @@ void ffFontInitXft(FFfont* font, const char* xft) {
     }
 
     // Try parse trailing "-<number>" as size, otherwise entire head is name
-    const char* dashPos = NULL;
-    const char* sizeStart = NULL;
+    const char* dashPos = nullptr;
+    const char* sizeStart = nullptr;
 
     for (const char* q = headEnd; q > headStart;) {
         --q;
@@ -425,10 +425,11 @@ void ffFontInitXft(FFfont* font, const char* xft) {
         if (value.length > 0) {
             if (
                 (keyLen == 4 && ffStrStartsWithIgnCase(keyStart, "size")) ||
-                (keyLen == 9 && ffStrStartsWithIgnCase(keyStart, "pixelsize"))) {
+                (keyLen == 9 && (ffStrStartsWithIgnCase(keyStart, "pixelsize") || ffStrStartsWithIgnCase(keyStart, "pointsize")))) {
                 if (sizeEmpty && ffCharIsDigit(value.chars[0])) {
                     ffStrbufAppend(&font->size, &value);
-                    ffStrbufAppendS(&font->size, keyLen == 4 ? "pt" : "px");
+                    ffStrbufAppendS(&font->size,
+                        (keyLen == 9 && ffStrStartsWithIgnCase(keyStart, "pixelsize")) ? "px" : "pt");
                 }
             } else if (keyLen == 5 && ffStrStartsWithIgnCase(keyStart, "style")) {
                 // style may contain multiple words: "Bold Italic"
@@ -457,6 +458,10 @@ void ffFontInitXft(FFfont* font, const char* xft) {
                 ffStrbufInit(style);
                 strbufAppendNSExcludingC(style, value.length, value.chars, '-');
                 ffStrbufTrim(style, ' ');
+                if (style->length == 0) {
+                    ffStrbufDestroy(style);
+                    --font->styles.length;
+                }
             }
         }
     }
@@ -483,7 +488,7 @@ void ffFontInitMoveValues(FFfont* font, FFstrbuf* name, FFstrbuf* size, FFstrbuf
 
 void ffFontInitWithSpace(FFfont* font, const char* rawName) {
     const char* pspace = strrchr(rawName, ' ');
-    if (pspace == NULL) {
+    if (pspace == nullptr) {
         ffFontInitCopy(font, rawName);
         return;
     }

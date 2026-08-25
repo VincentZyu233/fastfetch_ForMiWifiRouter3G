@@ -1,6 +1,6 @@
 extern "C" {
 #include "disk.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 }
 #include <fs_info.h>
 #include <Directory.h>
@@ -70,5 +70,5 @@ const char* ffDetectDisksImpl(FFDiskOptions* options, FFlist* disks) {
             disk->createTime = (uint64_t) crTime * 1000;
         }
     }
-    return NULL;
+    return nullptr;
 }

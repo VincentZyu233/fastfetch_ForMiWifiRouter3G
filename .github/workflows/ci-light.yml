@@ -1,0 +1,13 @@
+name: Lightweight CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  no-features-test:
+    uses: ./.github/workflows/build-no-features-test.yml

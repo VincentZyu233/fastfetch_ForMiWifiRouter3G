@@ -58,7 +58,7 @@ const char* ffDetectSound(FFSoundOptions* options, FFlist* devices) {
         }
 
 #if defined(SOUND_MIXER_MUTE) && (SOUND_MIXER_MUTE != SOUND_MIXER_NONE)
-#    define FF_SOUND_HAVE_MIXER_MUTE 1
+    #define FF_SOUND_HAVE_MIXER_MUTE 1
         uint32_t mutemask = 0;
         ioctl(fd, SOUND_MIXER_READ_MUTE, &mutemask);
 #endif
@@ -86,5 +86,5 @@ const char* ffDetectSound(FFSoundOptions* options, FFlist* devices) {
         device->type = FF_SOUND_TYPE_ACTIVE | (isMain ? FF_SOUND_TYPE_MAIN : FF_SOUND_TYPE_NONE);
     }
 
-    return NULL;
+    return nullptr;
 }

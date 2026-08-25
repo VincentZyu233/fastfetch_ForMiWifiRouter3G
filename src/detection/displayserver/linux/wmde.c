@@ -1,7 +1,7 @@
 #include "displayserver_linux.h"
 #include "common/io.h"
 #include "common/properties.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "common/mallocHelper.h"
 
 #include <stdlib.h>
@@ -9,18 +9,18 @@
 #include <unistd.h>
 
 #if __FreeBSD__
-#    include <sys/sysctl.h>
-#    include <sys/types.h>
-#    include <sys/user.h>
+    #include <sys/sysctl.h>
+    #include <sys/types.h>
+    #include <sys/user.h>
 #elif __OpenBSD__
-#    include <sys/param.h>
-#    include <sys/sysctl.h>
-#    include <kvm.h>
+    #include <sys/param.h>
+    #include <sys/sysctl.h>
+    #include <kvm.h>
 #elif __sun
-#    include <procfs.h>
+    #include <procfs.h>
 #elif __NetBSD__
-#    include <sys/types.h>
-#    include <sys/sysctl.h>
+    #include <sys/types.h>
+    #include <sys/sysctl.h>
 #endif
 
 static const char* parseEnv(void) {
@@ -51,39 +51,39 @@ static const char* parseEnv(void) {
         return env;
     }
 
-    if (getenv("KDE_FULL_SESSION") != NULL || getenv("KDE_SESSION_UID") != NULL || getenv("KDE_SESSION_VERSION") != NULL) {
+    if (getenv("KDE_FULL_SESSION") != nullptr || getenv("KDE_SESSION_UID") != nullptr || getenv("KDE_SESSION_VERSION") != nullptr) {
         return "KDE";
     }
 
-    if (getenv("GNOME_DESKTOP_SESSION_ID") != NULL) {
+    if (getenv("GNOME_DESKTOP_SESSION_ID") != nullptr) {
         return "GNOME";
     }
 
-    if (getenv("MATE_DESKTOP_SESSION_ID") != NULL) {
+    if (getenv("MATE_DESKTOP_SESSION_ID") != nullptr) {
         return "Mate";
     }
 
-    if (getenv("TDE_FULL_SESSION") != NULL) {
+    if (getenv("TDE_FULL_SESSION") != nullptr) {
         return "Trinity";
     }
 
-    if (getenv("HYPRLAND_CMD") != NULL) {
+    if (getenv("HYPRLAND_CMD") != nullptr) {
         return "Hyprland";
     }
 
-    if (getenv("SWAYSOCK") != NULL) {
+    if (getenv("SWAYSOCK") != nullptr) {
         return "Sway";
     }
 
 #if __linux__ && !__ANDROID__
     if (
-        getenv("WAYLAND_DISPLAY") != NULL &&
+        getenv("WAYLAND_DISPLAY") != nullptr &&
         ffPathExists("/mnt/wslg/", FF_PATHTYPE_DIRECTORY)) {
         return "WSLg";
     }
 #endif
 
-    return NULL;
+    return nullptr;
 }
 
 static void applyPrettyNameIfWM(FFDisplayServerResult* result, const char* name) {
@@ -267,25 +267,30 @@ static void applyPrettyNameIfDE(FFDisplayServerResult* result, const char* name)
         ffStrbufSetS(&result->deProcessName, "unity-session");
         ffStrbufSetS(&result->dePrettyName, FF_DE_PRETTY_UNITY);
     }
+
+    else if (ffStrEqualsIgnCase(name, "Enlightenment")) {
+        ffStrbufSetS(&result->deProcessName, "enlightenment_start");
+        ffStrbufSetS(&result->dePrettyName, FF_DE_PRETTY_ENLIGHTENMENT);
+    }
 }
 
 static const char* getFromProcesses(FFDisplayServerResult* result) {
     uint32_t userId = instance.state.platform.uid;
 
 #if __FreeBSD__
-#    ifdef __DragonFly__
-#        define ki_comm kp_comm
-#    endif
+    #ifdef __DragonFly__
+        #define ki_comm kp_comm
+    #endif
 
     int request[] = { CTL_KERN, KERN_PROC, KERN_PROC_UID, (int) userId };
     size_t length = 0;
 
-    if (sysctl(request, ARRAY_SIZE(request), NULL, &length, NULL, 0) != 0) {
-        return "sysctl({CTL_KERN, KERN_PROC, KERN_PROC_UID}, NULL) failed";
+    if (sysctl(request, ARRAY_SIZE(request), nullptr, &length, nullptr, 0) != 0) {
+        return "sysctl({CTL_KERN, KERN_PROC, KERN_PROC_UID}, nullptr) failed";
     }
 
     FF_AUTO_FREE struct kinfo_proc* procs = (struct kinfo_proc*) malloc(length);
-    if (sysctl(request, ARRAY_SIZE(request), procs, &length, NULL, 0) != 0) {
+    if (sysctl(request, ARRAY_SIZE(request), procs, &length, nullptr, 0) != 0) {
         return "sysctl({CTL_KERN, KERN_PROC, KERN_PROC_UID}, procs) failed";
     }
 
@@ -305,7 +310,7 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
         }
     }
 #elif __OpenBSD__
-    kvm_t* kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, NULL);
+    kvm_t* kd = kvm_open(nullptr, nullptr, nullptr, KVM_NO_FILES, nullptr);
     int count = 0;
     const struct kinfo_proc* proc = kvm_getprocs(kd, KERN_PROC_UID, (int) userId, sizeof(*proc), &count);
     if (proc) {
@@ -326,7 +331,7 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
     kvm_close(kd);
 #elif __sun
     FF_AUTO_CLOSE_DIR DIR* procdir = opendir("/proc");
-    if (procdir == NULL) {
+    if (procdir == nullptr) {
         return "opendir(\"/proc\") failed";
     }
 
@@ -336,7 +341,7 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
     uint32_t procPathLength = procPath.length;
 
     struct dirent* dirent;
-    while ((dirent = readdir(procdir)) != NULL) {
+    while ((dirent = readdir(procdir)) != nullptr) {
         if (!ffCharIsDigit(dirent->d_name[0])) {
             continue;
         }
@@ -366,7 +371,7 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
     }
 #elif __linux__ || __GNU__
     FF_AUTO_CLOSE_DIR DIR* procdir = opendir("/proc");
-    if (procdir == NULL) {
+    if (procdir == nullptr) {
         return "opendir(\"/proc\") failed";
     }
 
@@ -379,7 +384,7 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
     FF_STRBUF_AUTO_DESTROY processName = ffStrbufCreateA(256); // Some processes have large command lines (looking at you chrome)
 
     struct dirent* dirent;
-    while ((dirent = readdir(procdir)) != NULL) {
+    while ((dirent = readdir(procdir)) != nullptr) {
         // Match only folders starting with a number (the pid folders)
         if (dirent->d_type != DT_DIR || !ffCharIsDigit(dirent->d_name[0])) {
             continue;
@@ -423,13 +428,13 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
     int request[] = { CTL_KERN, KERN_PROC2, KERN_PROC_UID, (int) userId, sizeof(struct kinfo_proc2), INT_MAX };
 
     size_t size = 0;
-    if (sysctl(request, ARRAY_SIZE(request), NULL, &size, NULL, 0) != 0) {
-        return "sysctl(KERN_PROC_UID, NULL) failed";
+    if (sysctl(request, ARRAY_SIZE(request), nullptr, &size, nullptr, 0) != 0) {
+        return "sysctl(KERN_PROC_UID, nullptr) failed";
     }
 
     FF_AUTO_FREE struct kinfo_proc2* procs = malloc(size);
 
-    if (sysctl(request, ARRAY_SIZE(request), procs, &size, NULL, 0) != 0) {
+    if (sysctl(request, ARRAY_SIZE(request), procs, &size, nullptr, 0) != 0) {
         return "sysctl(KERN_PROC_UID, procs) failed";
     }
 
@@ -448,7 +453,7 @@ static const char* getFromProcesses(FFDisplayServerResult* result) {
     }
 #endif
 
-    return NULL;
+    return nullptr;
 }
 
 void ffdsDetectWMDE(FFDisplayServerResult* result) {

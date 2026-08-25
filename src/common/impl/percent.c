@@ -4,7 +4,7 @@
 #include "common/option.h"
 #include "common/jsonconfig.h"
 #include "common/textModifier.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 
 static void appendOutputColor(FFstrbuf* buffer, const FFModuleArgs* module) {
     if (module->outputColor.length) {
@@ -17,7 +17,7 @@ static void appendOutputColor(FFstrbuf* buffer, const FFModuleArgs* module) {
 const char* ffPercentParseTypeJsonConfig(yyjson_val* jsonVal, FFPercentageTypeFlags* result) {
     if (yyjson_is_uint(jsonVal)) {
         *result = (FFPercentageTypeFlags) yyjson_get_uint(jsonVal);
-        return NULL;
+        return nullptr;
     }
     if (yyjson_is_arr(jsonVal)) {
         FFPercentageTypeFlags flags = 0;
@@ -45,7 +45,7 @@ const char* ffPercentParseTypeJsonConfig(yyjson_val* jsonVal, FFPercentageTypeFl
         }
 
         *result = flags;
-        return NULL;
+        return nullptr;
     }
 
     return "Error: usage: percent.type must be a number or an array of strings";
@@ -58,9 +58,6 @@ void ffPercentAppendBar(FFstrbuf* buffer, double percent, FFPercentageModuleConf
     const FFOptionsDisplay* options = &instance.config.display;
 
     const bool borderAsValue = options->barBorderLeftElapsed.length && options->barBorderRightElapsed.length;
-
-    uint8_t blocksPercent = (uint8_t) (percent / 100.0 * options->barWidth + 0.5);
-    assert(blocksPercent <= options->barWidth);
 
     if (!borderAsValue && options->barBorderLeft.length) {
         if (!options->pipe && options->barColorBorder.length > 0) {
@@ -86,11 +83,14 @@ void ffPercentAppendBar(FFstrbuf* buffer, double percent, FFPercentageModuleConf
 
         FFPercentageTypeFlags percentType = config.type == 0 ? options->percentType : config.type;
 
+        uint8_t blocksPercent = (uint8_t) (percent / 100.0 * options->barWidth + 0.5);
+        assert(blocksPercent <= options->barWidth);
+
         bool autoColorElapsed = ffStrbufIgnCaseEqualS(&options->barColorElapsed, "auto");
 
         bool monochrome = (percentType & FF_PERCENTAGE_TYPE_BAR_MONOCHROME_BIT) || !autoColorElapsed;
         if (!options->pipe && options->barColorElapsed.length > 0 && monochrome) {
-            const char* color = NULL;
+            const char* color = nullptr;
             if (!autoColorElapsed) {
                 color = options->barColorElapsed.chars;
             } else if (green <= yellow) {
@@ -190,7 +190,11 @@ void ffPercentAppendNum(FFstrbuf* buffer, double percent, FFPercentageModuleConf
             }
         }
     }
-    ffStrbufAppendF(buffer, "%*.*f%s%%", options->percentWidth, options->percentNdigits, percent, options->percentSpaceBeforeUnit == FF_SPACE_BEFORE_UNIT_ALWAYS ? " " : "");
+    if (percent == -DBL_MAX) {
+        ffStrbufAppendS(buffer, "-");
+    } else {
+        ffStrbufAppendF(buffer, "%*.*f%s%%", options->percentWidth, options->percentNdigits, percent, options->percentSpaceBeforeUnit == FF_SPACE_BEFORE_UNIT_ALWAYS ? " " : "");
+    }
 
     if (colored && !options->pipe) {
         ffStrbufAppendS(buffer, FASTFETCH_TEXT_MODIFIER_RESET);

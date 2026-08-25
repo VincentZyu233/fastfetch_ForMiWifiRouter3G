@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "common/arrayUtils.h"
+#include "common/arrutil.h"
 #include "common/FFstrbuf.h"
 #include "common/FFlist.h"
 #include "common/FFPlatform.h"
@@ -21,14 +21,20 @@ typedef struct FFconfig {
     FFOptionsGeneral general;
 } FFconfig;
 
+typedef struct FFLogoLineCacheState {
+    FFlist lines;
+    uint32_t nextLine;
+    uint32_t rightOffset;
+} FFLogoLineCacheState;
+
 typedef struct FFstate {
     uint32_t logoWidth;
     uint32_t logoHeight;
     uint32_t keysHeight;
-    bool terminalLightTheme;
     bool titleFqdn;
     uint32_t dynamicInterval;
     FFPlatform platform;
+    FFLogoLineCacheState logoLineCache;
 } FFstate;
 
 typedef struct FFinstance {

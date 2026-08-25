@@ -1,8 +1,8 @@
 #include "tpm.h"
 
 #ifndef __aarch64__
-#    include "common/apple/cf_helpers.h"
-#    include <IOKit/IOKitLib.h>
+    #include "common/apple/cf_helpers.h"
+    #include <IOKit/IOKitLib.h>
 #endif
 
 const char* ffDetectTPM(FFTPMResult* result) {
@@ -10,7 +10,7 @@ const char* ffDetectTPM(FFTPMResult* result) {
 
     ffStrbufSetStatic(&result->version, "2.0");
     ffStrbufSetStatic(&result->description, "Apple Silicon Security");
-    return NULL;
+    return nullptr;
 
 #else
 
@@ -21,7 +21,7 @@ const char* ffDetectTPM(FFTPMResult* result) {
     if (t2Service) {
         ffStrbufSetStatic(&result->version, "2.0");
         ffStrbufSetStatic(&result->description, "Apple T2 Security Chip");
-        return NULL;
+        return nullptr;
     }
 
 #endif

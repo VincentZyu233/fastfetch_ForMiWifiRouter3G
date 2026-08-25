@@ -6,9 +6,9 @@ extern "C" {
 
 #if __has_include(<directx/dxcore.h>) && __has_include(<dxguids/dxguids.h>)
 
-#    include <directx/dxcore.h>
-#    include <dxguids/dxguids.h>
-#    include "common/windows/util.hpp"
+    #include <directx/dxcore.h>
+    #include <dxguids/dxguids.h>
+    #include "common/windows/util.hpp"
 
 static IDXCoreAdapterFactory* loadDxCoreFactory() {
     static bool initialized = false;
@@ -18,27 +18,27 @@ static IDXCoreAdapterFactory* loadDxCoreFactory() {
     }
 
     initialized = true;
-    FF_LIBRARY_LOAD(dxcore, NULL, "dxcore" FF_LIBRARY_EXTENSION, 1)
+    FF_LIBRARY_LOAD(dxcore, nullptr, "dxcore" FF_LIBRARY_EXTENSION, 1)
 
     // DXCoreCreateAdapterFactory is a reloaded function, so we can't use FF_LIBRARY_LOAD_SYMBOL_MESSAGE here
     typedef HRESULT (*DXCoreCreateAdapterFactory_t)(REFIID riid, void** ppvFactory);
 
-#    ifndef FF_DISABLE_DLOPEN
+    #ifndef FF_DISABLE_DLOPEN
     auto ffDXCoreCreateAdapterFactory = (DXCoreCreateAdapterFactory_t) dlsym(dxcore, "DXCoreCreateAdapterFactory");
     if (ffDXCoreCreateAdapterFactory == nullptr) {
-        return NULL;
+        return nullptr;
     }
-#    else
+    #else
     auto ffDXCoreCreateAdapterFactory = (DXCoreCreateAdapterFactory_t) DXCoreCreateAdapterFactory;
-#    endif
+    #endif
 
     HRESULT hr = ffDXCoreCreateAdapterFactory(IID_PPV_ARGS(&factory));
     if (FAILED(hr)) {
         FF_DEBUG("DXCoreCreateAdapterFactory failed with HRESULT: 0x%08lX (%s)", hr, ffDebugHResult(hr));
-        return NULL;
+        return nullptr;
     }
 
-    dxcore = NULL; // Don't unload
+    dxcore = nullptr; // Don't unload
     return factory;
 }
 
@@ -72,7 +72,7 @@ extern "C" const char* ffGPUDetectTypeWithDXCore(LUID adapterLuid, FFGPUResult* 
 
 #else
 
-#    warning "DXCore headers not available, GPU type detection may be less accurate"
+    #warning "DXCore headers not available, GPU type detection may be less accurate"
 
 extern "C" const char* ffGPUDetectTypeWithDXCore(LUID adapterLuid, FFGPUResult* gpu) {
     FF_UNUSED(adapterLuid, gpu);

@@ -3,18 +3,21 @@
 #include "common/parsing.h"
 #include "common/thread.h"
 #include "common/textModifier.h"
+#include "common/strutil.h"
 #include "detection/displayserver/displayserver.h"
-#include "detection/terminaltheme/terminaltheme.h"
 #include "logo/logo.h"
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <locale.h>
 #ifdef _WIN32
-#    include <windows.h>
-#    include "common/windows/unicode.h"
+    #include <windows.h>
+    #include "common/windows/unicode.h"
 #else
-#    include <signal.h>
+    #include <signal.h>
+#endif
+#if __linux__
+    #include <linux/version.h>
 #endif
 
 FFinstance instance; // Global singleton
@@ -23,19 +26,10 @@ static void initState(FFstate* state) {
     state->logoWidth = 0;
     state->logoHeight = 0;
     state->keysHeight = 0;
-    state->terminalLightTheme = false;
     state->titleFqdn = false;
 
     ffPlatformInit(&state->platform);
     state->dynamicInterval = 0;
-
-    {
-        // don't enable bright color if the terminal is in light mode
-        FFTerminalThemeResult result;
-        if (ffDetectTerminalTheme(&result, true /* forceEnv for performance */) && !result.bg.dark) {
-            state->terminalLightTheme = true;
-        }
-    }
 }
 
 static void defaultConfig(void) {
@@ -44,10 +38,30 @@ static void defaultConfig(void) {
     ffOptionsInitDisplay(&instance.config.display);
 }
 
+#ifdef _WIN32
+static UINT oldCp = CP_UTF8;
+void resetConsoleCP(void) {
+    if (oldCp != CP_UTF8) {
+        SetConsoleOutputCP(oldCp);
+    }
+}
+#endif
+
 void ffInitInstance(void) {
 #ifdef _WIN32
     // https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setlocale-wsetlocale?source=recommendat>
     setlocale(LC_ALL, ".UTF8");
+
+    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    if (GetConsoleMode(hStdout, &mode)) {
+        SetConsoleMode(hStdout, mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        oldCp = GetConsoleOutputCP();
+        if (oldCp != CP_UTF8) {
+            SetConsoleOutputCP(CP_UTF8);
+            atexit(resetConsoleCP);
+        }
+    }
 #else
     // Never use `setlocale(LC_ALL, "")`
     setlocale(LC_TIME, "");
@@ -55,13 +69,14 @@ void ffInitInstance(void) {
 
     defaultConfig();
     initState(&instance.state);
+
+#ifdef _WIN32
+    instance.state.platform.initCP = oldCp;
+#endif
 }
 
-static volatile bool ffDisableLinewrap = true;
-static volatile bool ffHideCursor = true;
-#if _WIN32
-static volatile UINT oldCp = CP_UTF8;
-#endif
+static volatile bool ffDisableLinewrap = false;
+static volatile bool ffHideCursor = false;
 
 static void resetConsole(void) {
     if (ffDisableLinewrap) {
@@ -78,20 +93,16 @@ static void resetConsole(void) {
 
 #if defined(_WIN32)
     fflush(stdout);
-
-    if (oldCp != CP_UTF8) {
-        SetConsoleOutputCP(oldCp);
-    }
 #endif
 }
 
 #ifdef _WIN32
-BOOL WINAPI consoleHandler(FF_A_UNUSED DWORD signal) {
+BOOL WINAPI consoleHandler([[maybe_unused]] DWORD signal) {
     resetConsole();
     exit(0);
 }
 #else
-static void exitSignalHandler(FF_A_UNUSED int signal) {
+static void exitSignalHandler([[maybe_unused]] int signal) {
     resetConsole();
     exit(0);
 }
@@ -104,32 +115,26 @@ void ffStart(void) {
 #ifdef _WIN32
     SetErrorMode(SEM_FAILCRITICALERRORS);
     if (instance.config.display.noBuffer) {
-        setvbuf(stdout, NULL, _IONBF, 0);
+        setvbuf(stdout, nullptr, _IONBF, 0);
     } else {
-        setvbuf(stdout, NULL, _IOFBF, 4096);
+        setvbuf(stdout, nullptr, _IOFBF, 4096);
     }
     SetConsoleCtrlHandler(consoleHandler, TRUE);
-    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD mode = 0;
-    if (GetConsoleMode(hStdout, &mode)) {
-        SetConsoleMode(hStdout, mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-        oldCp = GetConsoleOutputCP();
-        if (oldCp != CP_UTF8) {
-            SetConsoleOutputCP(CP_UTF8);
-        }
-    }
 #else
     if (instance.config.display.noBuffer) {
-        setvbuf(stdout, NULL, _IONBF, 0);
+        setvbuf(stdout, nullptr, _IONBF, 0);
     }
-    struct sigaction action = { .sa_handler = exitSignalHandler };
-    sigaction(SIGINT, &action, NULL);
-    sigaction(SIGTERM, &action, NULL);
-    sigaction(SIGQUIT, &action, NULL);
+    struct sigaction action;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    action.sa_handler = exitSignalHandler;
+    sigaction(SIGINT, &action, nullptr);
+    sigaction(SIGTERM, &action, nullptr);
+    sigaction(SIGQUIT, &action, nullptr);
     sigset_t newmask;
     sigemptyset(&newmask);
     sigaddset(&newmask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &newmask, NULL);
+    sigprocmask(SIG_BLOCK, &newmask, nullptr);
 #endif
 
     // reset everything to default before we start printing
@@ -170,9 +175,19 @@ void ffDestroyInstance(void) {
     destroyState();
 }
 
+#if FF_HAVE_LUA
+    #include <lua.h>
+#endif
+#if FF_HAVE_QUICKJS
+    #include <quickjs.h>
+#endif
+
 // Must be in a file compiled with the libfastfetch target, because the FF_HAVE* macros are not defined for the executable targets
 void ffListFeatures(void) {
     fputs(
+#if __linux__
+        "linux-headers " FF_STR(LINUX_VERSION_MAJOR) "." FF_STR(LINUX_VERSION_PATCHLEVEL) "." FF_STR(LINUX_VERSION_SUBLEVEL) "\n"
+#endif
 #if FF_HAVE_THREADS
         "threads\n"
 #endif
@@ -191,14 +206,14 @@ void ffListFeatures(void) {
 #if FF_HAVE_DRM
         "drm\n"
 #endif
-#if FF_HAVE_DRM_AMDGPU
-        "drm_amdgpu\n"
-#endif
 #if FF_HAVE_GIO
         "gio\n"
 #endif
 #if FF_HAVE_DCONF
         "dconf\n"
+#endif
+#if FF_HAVE_EET
+        "eet\n"
 #endif
 #if FF_HAVE_DBUS
         "dbus\n"
@@ -245,23 +260,41 @@ void ffListFeatures(void) {
 #if FF_HAVE_LIBZFS
         "libzfs\n"
 #endif
+#if FF_HAVE_VADRM
+        "va-drm\n"
+#endif
+#if FF_HAVE_VAX11
+        "va-x11\n"
+#endif
+#if FF_HAVE_VDPAU
+        "vdpau\n"
+#endif
 #if FF_USE_SYSTEM_YYJSON
         "System yyjson\n"
 #endif
 #if FF_HAVE_LINUX_VIDEODEV2
         "linux/videodev2\n"
 #endif
-#if FF_HAVE_LINUX_WIRELESS
-        "linux/wireless\n"
-#endif
 #if FF_HAVE_EMBEDDED_PCIIDS
         "Embedded pciids\n"
+#endif
+#if FF_ENABLE_WCWIDTH
+        "Embedded wcwidth\n"
+#endif
+#if FF_HAVE_WINRT
+        "WinRT headers\n"
 #endif
 #if FF_WIN81_COMPAT
         "Windows 8.1 Compatibility\n"
 #endif
 #if FF_APPLE_MEMSIZE_USABLE
         "Apple memsize_usable\n"
+#endif
+#if FF_HAVE_LUA
+        LUA_VERSION "\n"
+#endif
+#if FF_HAVE_QUICKJS
+        "QuickJS " FF_STR(QJS_VERSION_MAJOR) "." FF_STR(QJS_VERSION_MINOR) "." FF_STR(QJS_VERSION_PATCH) QJS_VERSION_SUFFIX "\n"
 #endif
         "",
         stdout);

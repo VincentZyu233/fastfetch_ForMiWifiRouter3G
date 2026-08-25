@@ -2,10 +2,10 @@
 
 #include "fastfetch.h"
 
-typedef enum FF_A_PACKED FFvarianttype {
+typedef enum FFvarianttype: uint8_t {
     FF_VARIANT_TYPE_STRING,
     FF_VARIANT_TYPE_BOOL,
-    FF_VARIANT_TYPE_INT
+    FF_VARIANT_TYPE_INT,
 } FFvarianttype;
 
 typedef union FFvariant {
@@ -18,7 +18,7 @@ typedef union FFvariant {
     };
 } FFvariant;
 
-#define FF_VARIANT_NULL ((FFvariant) { .strValue = NULL })
+#define FF_VARIANT_NULL ((FFvariant) { .strValue = nullptr })
 
 FFvariant ffSettingsGetDConf(const char* key, FFvarianttype type);
 FFvariant ffSettingsGetGSettings(const char* schemaName, const char* path, const char* key, FFvarianttype type);
@@ -29,6 +29,16 @@ FFvariant ffSettingsGetXFConfFirstMatch(const char* channelName, const char* pro
 
 int ffSettingsGetSQLite3Int(const char* dbPath, const char* query);
 bool ffSettingsGetSQLite3String(const char* dbPath, const char* query, FFstrbuf* result);
+
+typedef struct {
+    char* theme;
+    char* icon_theme;
+    bool use_e_cursor;
+    int cursor_size;
+    char* desktop_default_background;
+    char* font;
+} ffEnlightenmentSettings;
+bool ffSettingsGetEnlightenmentProperty(ffEnlightenmentSettings* result);
 
 #ifdef __ANDROID__
 bool ffSettingsGetAndroidProperty(const char* propName, FFstrbuf* result);

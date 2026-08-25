@@ -6,24 +6,24 @@
 static inline const char* ffFindFileName(const char* file) {
     const char* lastSlash = __builtin_strrchr(file, '/');
 #ifdef _WIN32
-    if (lastSlash == NULL) {
+    if (lastSlash == nullptr) {
         lastSlash = __builtin_strrchr(file, '\\');
     }
 #endif
-    if (lastSlash != NULL) {
+    if (lastSlash != nullptr) {
         return lastSlash + 1;
     }
     return file;
 }
 
 #ifndef NDEBUG
-#    define FF_DEBUG_PRINT(file_, line_, format_, ...)                                                                                      \
+    #define FF_DEBUG_PRINT(file_, line_, format_, ...)                                                                                      \
         do {                                                                                                                                \
             if (instance.config.display.debugMode)                                                                                          \
                 fprintf(stderr, "[%s%4d, %s] " format_ "\n", ffFindFileName(file_), line_, ffTimeToTimeStr(ffTimeGetNow()), ##__VA_ARGS__); \
         } while (0)
 #else
-#    define FF_DEBUG_PRINT(file_, line_, format_, ...) \
+    #define FF_DEBUG_PRINT(file_, line_, format_, ...) \
         do {                                           \
         } while (0)
 #endif
@@ -33,5 +33,6 @@ static inline const char* ffFindFileName(const char* file) {
 #if _WIN32
 const char* ffDebugWin32Error(DWORD errorCode);
 const char* ffDebugNtStatus(NTSTATUS status);
+const char* ffDebugConfigRet(unsigned long /*CONFIGRET*/ ret);
 const char* ffDebugHResult(HRESULT hr);
 #endif

@@ -1,5 +1,5 @@
 #include "FFPlatform_private.h"
-#include "common/stringUtils.h"
+#include "common/strutil.h"
 #include "common/io.h"
 #include "detection/version/version.h"
 
@@ -18,6 +18,7 @@ void ffPlatformInit(FFPlatform* platform) {
 
 #ifdef _WIN32
     ffStrbufInit(&platform->sid);
+    platform->initCP = 0;
 #endif
 
     FFPlatformSysinfo* info = &platform->sysinfo;
@@ -26,6 +27,7 @@ void ffPlatformInit(FFPlatform* platform) {
     ffStrbufInit(&info->release);
     ffStrbufInit(&info->version);
     ffStrbufInit(&info->architecture);
+    info->pageSize = 0;
 
     ffPlatformInitImpl(platform);
 
