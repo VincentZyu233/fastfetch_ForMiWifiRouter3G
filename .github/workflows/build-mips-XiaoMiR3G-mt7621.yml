@@ -23,22 +23,22 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential xz-utils wget
+          sudo apt-get install -y cmake build-essential wget zstd
 
       - name: Download and set up OpenWrt SDK
         run: |
           echo "::group::Downloading OpenWrt SDK"
-          wget -q --show-progress https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          wget -q --show-progress https://downloads.openwrt.org/releases/24.10.7/targets/ramips/mt7621/openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
           echo "::endgroup::"
 
           echo "::group::Extracting SDK"
-          tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          echo "SDK_ROOT=$(pwd)/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64" >> "$GITHUB_ENV"
+          tar --zstd -xf openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          echo "SDK_ROOT=$(pwd)/openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64" >> "$GITHUB_ENV"
           echo "::endgroup::"
 
       - name: Compile Fastfetch
         run: |
-          export SYSROOT="$SDK_ROOT/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl"
+          export SYSROOT="$SDK_ROOT/staging_dir/toolchain-mipsel_24kc_gcc-13.3.0_musl"
           export PATH="$SYSROOT/bin:$PATH"
           export STAGING_DIR="$SDK_ROOT/staging_dir"
 
@@ -115,7 +115,7 @@ jobs:
 
             - Fastfetch version: `${{ needs.build.outputs.version }}`
             - Architecture: `mipsel` (MT7621 / MIPS 1004Kc)
-            - OpenWrt SDK: `23.05.4`
+            - OpenWrt SDK: `24.10.7`
             - Source commit: `${{ github.sha }}`
             - Build type: `static`
             - SHA-256: `${{ needs.build.outputs.sha256 }}`

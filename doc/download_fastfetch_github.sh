@@ -1,13 +1,18 @@
 #!/bin/sh
 
-# 设置变量
-URL="https://github.com/VincentZyu233/fastfetch_ForMiWifiRouter3G/releases/download/local-build-release/fastfetch-linux-mipsel"
+# Select the newest versioned MT7621 asset from GitHub Releases.
+API_URL="https://api.github.com/repos/VincentZyu233/fastfetch_ForMiWifiRouter3G/releases/latest"
 DEST="/usr/bin/fastfetch"
 
 echo "正在从 GitHub 下载 Fastfetch for MT7621..."
 
-# 下载并直接覆盖旧文件
-# -q: 静默模式, -O: 指定保存路径
+URL=$(wget -qO- "$API_URL" | sed -n 's#.*"browser_download_url": "\([^"]*fastfetch-linux-mipsel-mt7621-[^"]*\)".*#\1#p' | head -n 1)
+
+if [ -z "$URL" ]; then
+    echo "错误：未找到 MT7621 的最新发布资产。"
+    exit 1
+fi
+
 wget "$URL" -O "$DEST"
 
 if [ $? -eq 0 ]; then

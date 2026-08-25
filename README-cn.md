@@ -25,21 +25,21 @@ wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/
 
 ## 编译的流程捏
 ```bash
-proxychains4 wget https://downloads.openwrt.org/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+proxychains4 wget https://downloads.openwrt.org/releases/24.10.7/targets/ramips/mt7621/openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
 # 或者从清华tuna源下载呢：
-wget https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.4/targets/ramips/mt7621/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+wget https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/24.10.7/targets/ramips/mt7621/openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
 
-tar -xJf openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-cd openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
-# cd /home/mac/SSoftwareFiles/openwrt-sdk/openwrt-sdk-23.05.4-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64
+tar --zstd -xf openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+cd openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64
+# cd /home/mac/SSoftwareFiles/openwrt-sdk/openwrt-sdk-24.10.7-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64
 ls
 pwd
 # 找到工具链的目录捏
 export SDK_PATH=$(pwd)
-export TOOLCHAIN_PATH=$SDK_PATH/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl
+export TOOLCHAIN_PATH=$SDK_PATH/staging_dir/toolchain-mipsel_24kc_gcc-13.3.0_musl
 export PATH=$TOOLCHAIN_PATH/bin:$PATH
 export STAGING_DIR=$SDK_PATH/staging_dir
-export SYSROOT=$SDK_PATH/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl
+export SYSROOT=$SDK_PATH/staging_dir/toolchain-mipsel_24kc_gcc-13.3.0_musl
 
 cd ..
 proxychains4 git clone https://github.com/fastfetch-cli/fastfetch
