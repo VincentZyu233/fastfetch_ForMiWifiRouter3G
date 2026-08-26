@@ -1,8 +1,14 @@
 #!/bin/sh
 
 # Select the newest versioned MT7621 asset from GitHub Releases.
+set -eu
+
 API_URL="https://api.github.com/repos/VincentZyu233/fastfetch_ForMiWifiRouter3G/releases/latest"
 DEST="/usr/bin/fastfetch"
+TMP="$(mktemp /tmp/fastfetch.XXXXXX)"
+INSTALL_TMP="${DEST}.new"
+
+trap 'rm -f "$TMP" "$INSTALL_TMP"' EXIT
 
 echo "正在从 GitHub 下载 Fastfetch for MT7621..."
 
@@ -13,13 +19,11 @@ if [ -z "$URL" ]; then
     exit 1
 fi
 
-wget "$URL" -O "$DEST"
+wget "$URL" -O "$TMP"
+chmod +x "$TMP"
+cp "$TMP" "$INSTALL_TMP"
+mv -f "$INSTALL_TMP" "$DEST"
+trap - EXIT
+rm -f "$TMP"
 
-if [ $? -eq 0 ]; then
-    echo "下载成功，正在设置运行权限..."
-    chmod +x "$DEST"
-    echo "安装完成！请尝试运行: fastfetch"
-else
-    echo "错误：下载失败，请检查网络或是否安装了 wget-ssl (opkg install wget-ssl)"
-    exit 1
-fi
+echo "安装完成！请尝试运行: fastfetch"
