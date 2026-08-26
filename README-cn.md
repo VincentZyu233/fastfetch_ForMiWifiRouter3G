@@ -17,7 +17,8 @@ wget -O - https://github.com/VincentZyu233/fastfetch_ForMiWifiRouter3G/raw/dev/d
 wget -O - https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/raw/dev/doc/download_fastfetch_gitee.sh | sh
 ```
 
-![小米路由器R3G Fastfetch 运行效果](doc/fastfetch-mips-MT7621-小米路由器R3G.png)
+![小米路由器R3G Fastfetch 运行效果](doc/images/preview/fastfetch-mips-MT7621-小米路由器R3G.png)
+> ↑ 新版（上）与旧版（下）OpenWrt Logo 对比
 
 
 ## github 的讨论捏:
@@ -123,9 +124,9 @@ nano ~/.config/fastfetch/config.jsonc
 
 ## 最终效果
 
-![works-on-my-machine.png](doc/works-on-my-machine.png)
-![小米路由器R3G的背面.png](doc/小米路由器R3G的背面.png)
-![小米路由器R3G的咸鱼商品页.png](doc/小米路由器R3G的咸鱼商品页.png)
+![works-on-my-machine.png](doc/images/works-on-my-machine.png)
+![小米路由器R3G的背面.png](doc/images/小米路由器R3G的背面.png)
+![小米路由器R3G的咸鱼商品页.png](doc/images/小米路由器R3G的咸鱼商品页.png)
 
 ---
 > 以下是来自原始上游仓库的README:
