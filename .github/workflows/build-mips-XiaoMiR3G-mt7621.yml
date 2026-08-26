@@ -5,8 +5,43 @@ on:
     branches: [dev, main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  prepare:
+    name: Check build trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.trigger.outputs.should_build }}
+      should_release: ${{ steps.trigger.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Match the exact build trigger
+        id: trigger
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          elif python3 scripts/ci/common/ci-trigger.py --message "$COMMIT_MESSAGE" --token build-release; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          elif python3 scripts/ci/common/ci-trigger.py --message "$COMMIT_MESSAGE" --token build-action; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: prepare
+    if: needs.prepare.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -89,11 +124,9 @@ jobs:
           path: build_mips/${{ steps.metadata.outputs.asset_name }}
 
   release:
-    needs: build
+    needs: [prepare, build]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, '[build-release]') ||
-      contains(github.event.head_commit.message, '[build release]')
+      needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
