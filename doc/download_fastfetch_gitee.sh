@@ -3,7 +3,7 @@
 # Upload this asset to the matching Gitee Release before publishing this script.
 set -eu
 
-RELEASE_TAG="mt7621-2.67.1-c1581fea"
+RELEASE_TAG="2.67.1"
 ASSET_NAME="fastfetch-linux-mipsel-mt7621-2.67.1-c1581fea"
 URL="https://gitee.com/vincent-zyu/fastfetch_ForMiWifiRouter3G/releases/download/${RELEASE_TAG}/${ASSET_NAME}"
 DEST="/usr/bin/fastfetch"
